@@ -22,3 +22,6 @@ dist/
 
 # UI
 ui/node_modules/
+
+# Local progress notes
+PROGRESS.txt
