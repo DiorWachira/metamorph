@@ -1,0 +1,63 @@
+[build-system]
+requires = ["hatchling>=1.25"]
+build-backend = "hatchling.build"
+
+[project]
+name = "metamorph"
+version = "0.1.0"
+description = "Metamorphic testing and CI gating for LLM applications."
+readme = "README.md"
+requires-python = ">=3.12"
+license = { text = "MIT" }
+authors = [{ name = "Dior Wachira" }]
+dependencies = [
+    "typer>=0.12",
+    "pydantic>=2.7",
+    "pyyaml>=6.0",
+    "httpx>=0.27",
+    "sqlalchemy>=2.0",
+    "jsonpath-ng>=1.6",
+]
+
+[project.optional-dependencies]
+examples = ["fastapi>=0.111", "uvicorn>=0.30", "scikit-learn>=1.5"]
+dev = [
+    "pytest>=8.2",
+    "pytest-asyncio>=0.23",
+    "hypothesis>=6.100",
+    "ruff>=0.5",
+    "mypy>=1.10",
+    "types-PyYAML",
+    "metamorph[examples]",
+]
+
+[project.scripts]
+metamorph = "metamorph.cli:app"
+
+[tool.hatch.build.targets.wheel]
+packages = ["src/metamorph"]
+
+[tool.pytest.ini_options]
+testpaths = ["tests"]
+asyncio_mode = "auto"
+asyncio_default_fixture_loop_scope = "function"
+
+[tool.ruff]
+line-length = 100
+target-version = "py312"
+
+[tool.ruff.lint]
+select = ["E", "F", "I", "B", "UP", "SIM", "RUF"]
+
+[tool.ruff.lint.per-file-ignores]
+"src/metamorph/templates.py" = ["E501"]  # JSONL seed lines
+
+[tool.mypy]
+python_version = "3.12"
+strict = true
+packages = ["metamorph"]
+mypy_path = "src"
+
+[[tool.mypy.overrides]]
+module = ["jsonpath_ng.*"]
+ignore_missing_imports = true

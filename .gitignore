@@ -1,0 +1,21 @@
+# Python
+__pycache__/
+*.py[cod]
+*.egg-info/
+.venv/
+build/
+dist/
+
+# Tooling caches
+.pytest_cache/
+.mypy_cache/
+.ruff_cache/
+.hypothesis/
+
+# Metamorph run storage (results DB, response cache, reports)
+.metamorph/
+
+# Editors / local agents
+.vscode/
+.idea/
+.qodo/

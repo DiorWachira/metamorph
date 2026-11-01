@@ -1,0 +1,1 @@
+The Constitution of Kenya was promulgated on 27 August 2010 after a national referendum held on 4 August 2010. It created 47 counties, each with an elected governor and a county assembly. Parliament has two houses, the National Assembly and the Senate. Article 7 makes Kiswahili the national language, and both Kiswahili and English are official languages.

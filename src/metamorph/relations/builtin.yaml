@@ -1,0 +1,43 @@
+# Built-in metamorphic relations. Enable them by id in metamorph.yaml and override any field:
+#
+#   relations:
+#     - doc-order-invariance
+#     - id: typo-robustness
+#       mode: blocking
+#       transform: {params: {rate: 0.2}}
+#
+# Every relation starts as WARNING; it blocks CI only once you (or triage precision) say so.
+
+- id: doc-order-invariance
+  description: Reordering the retrieved documents must not change the answer.
+  transform: {name: shuffle_documents}
+  comparator: {name: token_f1, threshold: 0.8}
+  tags: [rag]
+
+- id: distractor-invariance
+  description: Adding an irrelevant paragraph must not change the answer.
+  transform: {name: inject_distractor}
+  comparator: {name: token_f1, threshold: 0.8}
+
+- id: typo-robustness
+  description: A few keyboard typos in the question must not change the answer.
+  transform: {name: typos, params: {rate: 0.1}}
+  comparator: {name: token_f1, threshold: 0.8}
+
+- id: number-format-invariance
+  description: Writing 1000 as 1,000 (or back) must not change the answer.
+  transform: {name: number_format}
+  comparator: {name: token_f1, threshold: 0.8}
+
+- id: entity-swap-invariance
+  description: >-
+    Swapping irrelevant person names for other names must not change the answer
+    (outputs are mapped back to the original names before comparing).
+  transform: {name: swap_entities, params: {categories: [person]}}
+  comparator: {name: token_f1, threshold: 0.8}
+
+- id: json-schema-stability
+  description: Formatting noise in the input must not change the shape of a JSON output.
+  transform: {name: surface_noise}
+  comparator: {name: json_schema_equal, threshold: 1.0}
+  tags: [json]

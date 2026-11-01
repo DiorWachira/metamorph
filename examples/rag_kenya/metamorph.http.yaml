@@ -1,0 +1,30 @@
+# The same suite against the running FastAPI server:
+#   uvicorn rag_app:api --port 8765
+#   metamorph run --config metamorph.http.yaml --gate
+
+target:
+  type: http
+  url: http://127.0.0.1:8765/answer
+  output_path: $.answer
+  timeout_s: 10
+
+seeds: seeds.jsonl
+
+fields:
+  text: question
+  documents: documents
+
+relations:
+  - id: doc-order-invariance
+    mode: blocking
+  - distractor-invariance
+  - typo-robustness
+  - number-format-invariance
+  - entity-swap-invariance
+
+run:
+  seed: 7
+  concurrency: 4
+
+gate:
+  max_blocking_violations: 0

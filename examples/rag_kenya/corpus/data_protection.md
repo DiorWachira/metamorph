@@ -1,0 +1,1 @@
+Kenya enacted the Data Protection Act in 2019. The Act established the Office of the Data Protection Commissioner, which registers data controllers and data processors and handles complaints from the public about the misuse of personal data.

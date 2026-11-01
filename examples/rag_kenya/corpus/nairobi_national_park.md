@@ -1,0 +1,1 @@
+Nairobi National Park, established in 1946, was the first national park in Kenya. It lies about 7 kilometres from the centre of Nairobi and covers about 117 square kilometres. Lions, giraffes and black rhinos live in the park within sight of the city skyline.

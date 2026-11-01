@@ -1,0 +1,1 @@
+Lake Turkana in northern Kenya is the largest permanent desert lake in the world. The Lake Turkana National Parks were listed as a UNESCO World Heritage Site in 1997 because of their wildlife and fossil sites.

@@ -1,0 +1,1 @@
+M-Pesa is a mobile money service launched by Safaricom in Kenya in March 2007. It lets users deposit, send and withdraw money using a mobile phone. A network of agents across the country converts cash into electronic value and back again.

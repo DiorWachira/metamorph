@@ -1,0 +1,1 @@
+Kenya became independent from Britain on 12 December 1963, a date now celebrated as Jamhuri Day. Jomo Kenyatta became the first Prime Minister, and when Kenya became a republic in 1964 he became its first President.

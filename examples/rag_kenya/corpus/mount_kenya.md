@@ -1,0 +1,1 @@
+Mount Kenya is the highest mountain in Kenya and the second highest in Africa after Kilimanjaro. Its highest peak, Batian, rises to 5199 metres. Mount Kenya National Park was listed as a UNESCO World Heritage Site in 1997.

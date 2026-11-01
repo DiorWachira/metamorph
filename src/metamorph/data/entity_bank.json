@@ -1,0 +1,13 @@
+{
+  "person": [
+    "Wanjiru", "Achieng", "Kamau", "Otieno", "Njeri", "Mwangi", "Akinyi", "Kiprono",
+    "Chebet", "Wafula", "Nafula", "Mutua", "Mwikali", "Omondi", "Atieno", "Kipchoge",
+    "Jeptoo", "Barasa", "Wambui", "Ochieng", "Muthoni", "Kariuki", "Auma", "Korir",
+    "Nekesa", "Juma", "Halima", "Abdi", "Amina", "Hassan", "Zawadi", "Baraka",
+    "Mary", "John", "Grace", "Peter", "Faith", "David", "Mercy", "Brian"
+  ],
+  "place": [
+    "Nairobi", "Mombasa", "Kisumu", "Nakuru", "Eldoret", "Thika", "Machakos", "Nyeri",
+    "Kakamega", "Kericho", "Garissa", "Malindi", "Naivasha", "Kitale", "Embu", "Meru"
+  ]
+}

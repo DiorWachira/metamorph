@@ -1,0 +1,1 @@
+The Mombasa-Nairobi Standard Gauge Railway opened for passenger service on 31 May 2017. The passenger service is called the Madaraka Express. The line runs for about 472 kilometres between the port city of Mombasa and Nairobi.
