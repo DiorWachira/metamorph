@@ -1,0 +1,181 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Metamorph run {{ report.run.id }}</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=IBM+Plex+Mono:wght@400;500;600&family=IBM+Plex+Sans:wght@400;500;600&family=Libre+Caslon+Display&family=Libre+Caslon+Text:ital,wght@0,400;0,700;1,400&display=swap" rel="stylesheet">
+<style>
+{{ css | safe }}
+.page { max-width: 1120px; margin: 0 auto; padding: 32px var(--gutter) 80px; }
+.masthead { display: grid; grid-template-columns: minmax(0, 1fr) auto; gap: 24px; align-items: end; border-bottom: 3px double var(--ink); padding-bottom: 18px; }
+.masthead h1 { font-size: clamp(40px, 7vw, 76px); }
+.masthead .stamp { justify-self: start; align-self: end; }
+.masthead h1 em { font-family: var(--font-serif); font-size: 0.5em; display: block; color: var(--ink-2); }
+.meta { display: flex; flex-wrap: wrap; gap: 6px 22px; margin-top: 14px; }
+.figures { display: grid; grid-template-columns: repeat(auto-fit, minmax(170px, 1fr)); border: 1px solid var(--ink); }
+.figure { padding: 14px 16px; border-right: 1px solid var(--rule); }
+.figure:last-child { border-right: 0; }
+.figure .n { font: 400 44px/1 var(--font-display); margin-top: 6px; }
+.figure.carmine .n { color: var(--carmine); }
+.figure.ochre .n { color: var(--ochre); }
+.baseline-note { margin-top: 12px; max-width: var(--measure); }
+.case { margin: 0 0 34px; }
+.case-head { display: grid; grid-template-columns: 240px minmax(0, 1fr); gap: 16px; margin-bottom: 10px; align-items: start; }
+.case-head .why { font: 14px/1.5 var(--font-serif); }
+.case-head .why b { font-family: var(--font-mono); font-weight: 500; font-size: 12px; }
+details summary { cursor: pointer; margin: 8px 0; }
+.legend { display: flex; flex-wrap: wrap; gap: 14px; margin: 10px 0 0; }
+footer { margin-top: 64px; border-top: 1px solid var(--rule); padding-top: 12px; }
+@media (max-width: 720px) {
+  .masthead, .case-head { grid-template-columns: minmax(0, 1fr); }
+  .figure { border-right: 0; border-bottom: 1px solid var(--rule); }
+}
+</style>
+</head>
+<body>
+<div class="page">
+
+<header class="masthead">
+  <div>
+    <div class="label">Metamorph &middot; Run accession</div>
+    <h1>{{ report.run.id }}<em>A survey of {{ report.cases | length }} specimens across {{ report.relations | length }} relations</em></h1>
+    <div class="meta label">
+      <span>Commit {{ (report.run.git_sha or "none")[:10] }}</span>
+      <span>Started {{ report.run.started_at.strftime("%Y-%m-%d %H:%M") }}</span>
+      <span>k = {{ report.run.samples }} source samples</span>
+      <span>Cost ${{ "%.4f" | format(report.run.total_cost_usd) }}</span>
+      {% if report.run.llm %}<span>Helper model {{ report.run.llm.model }}</span>{% endif %}
+      {% if report.run.status == "budget_exhausted" %}<span style="color: var(--carmine)">Budget exhausted: partial run</span>{% endif %}
+    </div>
+  </div>
+  {% if report.gate %}
+    {% if report.gate.too_many_errors %}<span class="stamp slate">Target failing</span>
+    {% elif report.gate.passed %}<span class="stamp verdigris">Gate passed</span>
+    {% else %}<span class="stamp carmine">Gate failed</span>{% endif %}
+  {% endif %}
+</header>
+
+<div class="section-head"><span class="section-no">§1</span><h2>Findings</h2></div>
+{% set effect = report.baseline_effect %}
+<div class="figures">
+  <div class="figure"><div class="label">Cases examined</div><div class="n numeral">{{ report.cases | length }}</div></div>
+  <div class="figure carmine"><div class="label">Mutations (violations)</div><div class="n numeral">{{ effect.violations }}</div></div>
+  <div class="figure carmine"><div class="label">Blocking</div><div class="n numeral">{{ report.gate.blocking_violations if report.gate else 0 }}</div></div>
+  <div class="figure ochre"><div class="label">Excused by baseline</div><div class="n numeral">{{ effect.excused }}</div></div>
+</div>
+<p class="caption baseline-note">
+  {% if report.run.samples > 1 %}
+  Each source input was sampled {{ report.run.samples }} times. A follow-up counts as a mutation only when it disagrees with the source more than the source disagrees with itself. Without that baseline this run would report {{ effect.naive_violations }} violations; {{ effect.excused }} were within the target's own noise.
+  {% else %}
+  Run with <code>run.samples: 3</code> to measure each input's self-variance and excuse disagreements that are only the target's own noise.
+  {% endif %}
+  {% if report.gate and report.gate.reasons %}<br>Gate: {{ report.gate.reasons | join("; ") }}.{% endif %}
+</p>
+
+<div class="section-head"><span class="section-no">§2</span><h2>The drawer</h2></div>
+<div class="drawer">
+  {% for r in report.relations %}
+  <div class="tray">
+    <div class="tray-head">
+      <div><div class="name">{{ r.id }}</div><div class="label">{{ r.transform }} &rarr; {{ r.comparator }}</div></div>
+      <span class="mode-tag {{ r.mode.value }}">{{ r.mode.value }}</span>
+    </div>
+    <div class="pins" aria-label="{{ r.cases }} cases">
+      {% for c in by_relation.get(r.id, []) %}<span class="pin {{ pin_class(c) }}" title="{{ c.seed_id }}: {{ c.status.value }}"></span>{% endfor %}
+    </div>
+    <div class="label">{{ r.violations }} mutated &middot; {{ r.passed }} intact{% if r.excused %} &middot; {{ r.excused }} excused{% endif %}{% if r.inconclusive %} &middot; {{ r.inconclusive }} inconclusive{% endif %}{% if r.errors %} &middot; {{ r.errors }} errors{% endif %}</div>
+  </div>
+  {% endfor %}
+</div>
+<div class="legend">
+  <span class="status-chip st-violation">mutation</span>
+  <span class="status-chip st-intact">intact</span>
+  <span class="status-chip st-excused">excused by baseline</span>
+  <span class="status-chip st-inconclusive">inconclusive / error</span>
+</div>
+
+<div class="section-head"><span class="section-no">§3</span><h2>Mutations</h2></div>
+{% if not plates %}<p class="caption">No violations in this run.</p>{% endif %}
+{% for p in plates %}
+{% set c = p.case %}
+<article class="case">
+  <div class="case-head">
+    <div class="specimen-label">
+      <div class="cat">MM&middot;{{ "%04d" | format(c.id) }}</div>
+      <div class="taxon">{{ c.relation_id }}</div>
+      <div>seed {{ c.seed_id }}{% if c.variant %} &middot; v{{ c.variant }}{% endif %}</div>
+      <div><span class="mode-tag {{ c.mode.value }}">{{ c.mode.value }}</span></div>
+    </div>
+    <div class="why">
+      <div><b>DETAIL</b> {{ c.detail }}</div>
+      <div><b>TRANSFORM</b> {{ c.followup_note }}</div>
+      {% if c.score is not none %}
+      <div class="caliper st-violation" role="img" aria-label="score {{ '%.2f' | format(c.score) }}, threshold {{ '%.2f' | format(c.threshold) }}">
+        <div class="scale"></div>
+        <div class="tick" style="left:0"></div><div class="tick" style="left:100%"></div>
+        {% if c.self_variance is not none %}<div class="noise" style="left:{{ (c.self_variance * 100) | round(1) }}%; width:{{ ((1 - c.self_variance) * 100) | round(1) }}%"></div>{% endif %}
+        <div class="threshold" style="left:{{ (c.threshold * 100) | round(1) }}%"></div>
+        <div class="score" style="left:{{ (c.score * 100) | round(1) }}%"></div>
+        <div class="ends"><span>0</span><span>score {{ "%.2f" | format(c.score) }} &middot; threshold {{ "%.2f" | format(c.threshold) }}</span><span>1</span></div>
+      </div>
+      {% endif %}
+    </div>
+  </div>
+  <div class="plate">
+    <div class="plate-form">
+      <div class="fig"><b>FIG. I</b>Source output</div>
+      <div class="body">{% for op, text in p.out_left %}{% if op == "delete" %}<span class="diff-del">{{ text }}</span>{% else %}{{ text }}{% endif %}{% endfor %}</div>
+    </div>
+    <div class="plate-instar">&darr; {{ transforms.get(c.relation_id, "transform") }}</div>
+    <div class="plate-form">
+      <div class="fig"><b>FIG. II</b>Follow-up output</div>
+      <div class="body">{% for op, text in p.out_right %}{% if op == "insert" %}<span class="diff-ins">{{ text }}</span>{% else %}{{ text }}{% endif %}{% endfor %}</div>
+    </div>
+  </div>
+  {% if p.in_left or p.in_right %}
+  <details>
+    <summary class="label">Inputs: source vs follow-up</summary>
+    <div class="plate">
+      <div class="plate-form"><div class="fig"><b>I</b>Source input</div><div class="body">{% for op, text in p.in_left %}{% if op == "delete" %}<span class="diff-del">{{ text }}</span>{% else %}{{ text }}{% endif %}{% endfor %}</div></div>
+      <div class="plate-instar">transform</div>
+      <div class="plate-form"><div class="fig"><b>II</b>Follow-up input</div><div class="body">{% for op, text in p.in_right %}{% if op == "insert" %}<span class="diff-ins">{{ text }}</span>{% else %}{{ text }}{% endif %}{% endfor %}</div></div>
+    </div>
+  </details>
+  {% endif %}
+</article>
+{% endfor %}
+{% if hidden_plates %}<p class="caption">&hellip;and {{ hidden_plates }} more in the JSON report.</p>{% endif %}
+
+<div class="section-head"><span class="section-no">§4</span><h2>Unstable specimens</h2></div>
+{% if report.unstable_inputs %}
+<p class="caption">Inputs the target answers inconsistently on its own, before any transform. Their failures say more about sampling noise than about the relation.</p>
+<table class="ledger">
+  <thead><tr><th>Seed</th><th>Relation</th><th>Comparator</th><th class="num">Self-agreement</th><th class="num">Threshold</th></tr></thead>
+  <tbody>
+  {% for u in report.unstable_inputs %}
+  <tr><td class="mono">{{ u.seed_id }}</td><td>{{ u.relation_id }}</td><td class="mono">{{ u.comparator }}</td><td class="num">{{ "%.2f" | format(u.self_agreement) }}</td><td class="num">{{ "%.2f" | format(u.threshold) }}</td></tr>
+  {% endfor %}
+  </tbody>
+</table>
+{% elif report.run.samples > 1 %}<p class="caption">Every input agreed with itself across all {{ report.run.samples }} samples.</p>
+{% else %}<p class="caption">Not measured: this run took one sample per input.</p>{% endif %}
+
+{% if report.skipped %}
+<div class="section-head"><span class="section-no">§5</span><h2>Not examined</h2></div>
+<table class="ledger">
+  <thead><tr><th>Seed</th><th>Relation</th><th>Reason</th></tr></thead>
+  <tbody>
+  {% for s in report.skipped %}<tr><td class="mono">{{ s.seed_id }}</td><td>{{ s.relation_id }}</td><td class="caption">{{ s.reason }}</td></tr>{% endfor %}
+  </tbody>
+</table>
+{% endif %}
+
+<footer class="caption">
+  Generated by Metamorph. Every comparison here was made without a labelled answer: each case checks a relation between two outputs of the same application.
+</footer>
+</div>
+</body>
+</html>

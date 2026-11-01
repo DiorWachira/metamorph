@@ -18,6 +18,7 @@ from typing import Any, ClassVar
 
 from metamorph.config import FieldsConfig
 from metamorph.errors import ConfigError
+from metamorph.services import Services
 from metamorph.types import FollowUp, Input
 from metamorph.util import get_path, has_path
 
@@ -53,6 +54,7 @@ class TransformContext:
     rng: random.Random
     fields: FieldsConfig
     resources: Resources
+    variant: int = 0  # which follow-up of this (relation, seed); part of LLM cache keys
 
 
 class Transform(ABC):
@@ -72,6 +74,13 @@ class Transform(ABC):
     @abstractmethod
     def apply(self, source: Input, ctx: TransformContext) -> FollowUp | None:
         """Return the follow-up, or None when the input offers nothing to change."""
+
+    async def aapply(self, source: Input, ctx: TransformContext) -> FollowUp | None:
+        """Async entry point used by the planner; LLM-backed transforms override this."""
+        return self.apply(source, ctx)
+
+    def bind(self, services: Services) -> None:  # noqa: B027  (optional hook)
+        """Receive run-scoped services; LLM-backed transforms keep the helper model."""
 
 
 _REGISTRY: dict[str, type[Transform]] = {}

@@ -1,0 +1,8 @@
+{"id": "wanjiru", "tags": ["cv", "json"], "input": {"cv_text": "Wanjiru Kamau is a data analyst in Nairobi with 4 years of experience. She is proficient in Python, SQL and Power BI. She has worked with Excel dashboards for county health data."}}
+{"id": "otieno", "tags": ["cv", "json"], "input": {"cv_text": "Otieno Ochieng is a backend developer at a Kisumu fintech. He is experienced in Django, PostgreSQL and REST APIs. He has built M-Pesa integrations using the Daraja API."}}
+{"id": "akinyi", "tags": ["cv", "json"], "input": {"cv_text": "Akinyi Atieno is a frontend engineer. She is skilled in React, TypeScript and Figma. She worked with Tailwind CSS on an online shop for a Mombasa retailer."}}
+{"id": "kiprono", "tags": ["cv", "json"], "input": {"cv_text": "Kiprono Korir is a cloud engineer in Eldoret. He is experienced in AWS, Terraform and Linux administration. He is certified in Kubernetes."}}
+{"id": "muthoni", "tags": ["cv", "json"], "input": {"cv_text": "Muthoni Wambui is a project manager. She is proficient in Jira, stakeholder management and budgeting. She has led delivery teams using Scrum."}}
+{"id": "barasa", "tags": ["cv", "json"], "input": {"cv_text": "Barasa Wafula is a mobile developer. He is skilled in Kotlin, Flutter and Firebase. He worked with the Google Maps API on a boda boda delivery app."}}
+{"id": "amina", "tags": ["cv", "json"], "input": {"cv_text": "Amina Hassan is a machine learning engineer. She is experienced in PyTorch, scikit-learn and NLP. She has worked with Kiswahili text classification datasets."}}
+{"id": "chebet", "tags": ["cv", "json"], "input": {"cv_text": "Chebet Jeptoo is an accountant in Nakuru. She is proficient in QuickBooks, Excel and tax compliance. She has experience in auditing for SACCOs."}}

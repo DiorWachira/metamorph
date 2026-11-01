@@ -31,12 +31,20 @@ jobs:
         run: pytest -q
 
   demo-gate:
-    # Dogfood the gate: the planted-bug demo must fail with exit code 1 and the fix must pass.
+    # Dogfood the gate: each planted-bug demo must fail with exit code 1 and its fix must pass.
+    # The CV demo's LLM transforms replay recorded follow-ups, so no API key is needed.
     runs-on: ubuntu-latest
     needs: test
+    strategy:
+      matrix:
+        include:
+          - demo: rag_kenya
+            fix: RAG_FIXED
+          - demo: cv_skills
+            fix: CV_FIXED
     defaults:
       run:
-        working-directory: examples/rag_kenya
+        working-directory: examples/${{ matrix.demo }}
     steps:
       - uses: actions/checkout@v7
 
@@ -57,11 +65,11 @@ jobs:
           test "$code" -eq 1
 
       - name: Fixed app passes (expects exit 0)
-        run: RAG_FIXED=1 metamorph run --gate --no-cache
+        run: env ${{ matrix.fix }}=1 metamorph run --gate --no-cache
 
       - uses: actions/upload-artifact@v7
         if: always()
         with:
-          name: metamorph-reports
-          path: examples/rag_kenya/.metamorph/reports/
+          name: metamorph-reports-${{ matrix.demo }}
+          path: examples/${{ matrix.demo }}/.metamorph/reports/
           include-hidden-files: true

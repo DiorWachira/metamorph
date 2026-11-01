@@ -16,11 +16,16 @@ What sets it apart:
 - **App-level and CI-native.** It tests your deployed endpoint or Python function, not a raw
   model, and gates pull requests with exit codes.
 - **It attacks false alarms.** A self-variance baseline means a follow-up fails only if it
-  disagrees with the source more than the app disagrees with itself. Per-relation precision,
-  learned from triage, comes in M3.
-- **Relations for Kenyan products**: English, Swahili and Sheng code-switch invariance (M2).
+  disagrees with the source more than the app disagrees with itself. On a noisy target it cut
+  false alarms by 81% ([measured below](#the-self-variance-baseline-measured)). Per-relation
+  precision, learned from triage, comes in M3.
+- **Relations for Kenyan products**: English / Kiswahili / Sheng code-switch invariance and a
+  Kiswahili translation round trip, alongside 10 other built-in relations.
+- **Cheap to run.** Target responses and helper-LLM calls are cached on disk, a cost budget
+  stops a run gracefully, and recorded LLM calls replay in CI with no API key.
 
-> **Status:** milestone 1 of 5 (core engine) is done. See the [roadmap](#roadmap).
+> **Status:** milestones 1 and 2 of 5 are done (core engine; LLM relations, self-variance
+> baseline, budget, HTML report). See the [roadmap](#roadmap).
 
 ## 60-second quickstart
 
@@ -48,7 +53,16 @@ x doc-order-invariance seed=constitution-date: token F1 0.17
 Gate FAILED: 13 blocking violations > allowed 0
 ```
 
-The demo is a small RAG app over public facts about Kenya. Its generator reads only the
+A second demo extracts skills from CVs, like JobBridge. Its prompt only recognises skills after
+English cue phrases, so CVs written in Sheng lose their skills:
+
+```bash
+cd ../cv_skills
+metamorph run --gate          # exits 1: code-switch-invariance catches all 8 CVs
+CV_FIXED=1 metamorph run --gate --no-cache    # exits 0
+```
+
+The first demo is a small RAG app over public facts about Kenya. Its generator reads only the
 **first** retrieved chunk. Every example-based test passes, because retrieval usually ranks the
 right chunk first. Shuffling the same chunks changes the answer, and `doc-order-invariance`
 catches the bug without anyone labelling a single answer. Run it again and all 63 calls come
@@ -99,6 +113,27 @@ flowchart LR
 4. **Gate.** Only **blocking** violations count. A high target error rate is reported as a
    runtime error (exit 2), not as a pass.
 
+### The self-variance baseline, measured
+
+The CV extractor in `examples/cv_skills` is noisy like an LLM sampled at temperature > 0: the
+same CV sometimes loses a skill or gains a related one. Because the target is simulated, the
+ground truth is known: a reported violation is a *true bug* when the noise-free extractor
+really answers the two inputs differently, and a *false alarm* when the difference is only
+sampling noise. `python examples/cv_skills/measure.py` runs the suite over 5 run seeds:
+
+| 200 cases | k = 1 (naive) | k = 3 (self-variance baseline) |
+|---|---:|---:|
+| violations reported | 127 | 69 |
+| true bugs among them | 69 | 58 |
+| false alarms | 58 | **11** (−81%) |
+| precision | 54% | **84%** |
+| recall of real bugs | 100% | 84% |
+
+The naive precision of 54% is close to the ~60% true-positive rate reported for LLMORPH's
+violations (Cho et al., 2025). The baseline is not free: when the app is noisy on an input, a
+real bug that hides inside that noise is excused too, so recall drops from 100% to 84%. The
+report lists those inputs as *unstable specimens*, so you know where your tests are weak.
+
 ### Exit codes
 
 | code | meaning |
@@ -146,7 +181,24 @@ gate:
 cache:
   enabled: true
   invalidate_on_code_change: true  # cache keys include git HEAD + working-tree diff
+
+llm:                               # helper model for LLM transforms and the entails judge
+  provider: anthropic              # or openai_compatible (OpenAI, Ollama, Groq...) or replay
+  model: claude-opus-5-5           # any model; claude-haiku-5-5 is the cheap option
+  effort: low                      # rewrites and judgements need little reasoning
+  # record_to: recordings.jsonl    # save every call, then replay with provider: replay
 ```
+
+`run.budget_usd` (or `--budget-usd`) caps the spend of a run across target and helper-LLM
+calls. Before each paid call the budget is checked; once spent, nothing new starts, in-flight
+calls finish, and unrun cases are reported as *skipped* (never as errors).
+
+**Helper LLMs.** Anthropic calls use the official SDK (`pip install "metamorph[llm]"`) with
+structured output, low effort and server-side refusal fallback. Every call is cached by
+(purpose, model, request), so re-runs reproduce identical follow-ups for free. With
+`record_to`, calls are appended to a JSONL file that `provider: replay` serves later; the CV
+demo runs in CI this way. Its recordings are follow-ups I authored offline (no API key was
+available while building it), and `rewrites.json` labels them as such.
 
 Secrets are expanded from the environment at load time. Run snapshots in the database store
 the config *as written*, so expanded secrets are never saved.
@@ -166,15 +218,24 @@ Metamorph can reorder it or add a distractor. The demo's `/answer` endpoint retr
 | `entity-swap-invariance` | `swap_entities` | `token_f1 ≥ 0.8` | swapping irrelevant names (mapped back before comparing) keeps the answer |
 | `json-schema-stability` | `surface_noise` | `json_schema_equal` | formatting noise keeps a JSON output's keys and types |
 
-Coming in M2: `paraphrase-invariance`, `translation-roundtrip-sw`, `code-switch-invariance`
-(English, Swahili and Sheng), `politeness-invariance`, `negation-flip`, `refusal-consistency`.
+| `paraphrase-invariance` | `paraphrase` (LLM) | `entails` | different wording keeps the answer |
+| `translation-roundtrip-sw` | `translate` to Kiswahili and back (LLM) | `entails` | translation noise keeps the answer |
+| `code-switch-invariance` | `code_switch` Sheng (LLM) | `entails` | English / Kiswahili / Sheng code-switching keeps the answer |
+| `politeness-invariance` | `formality` polite (LLM) | `entails` | a politer request gets the same answer |
+| `negation-flip` | `negate` (LLM) | `verdict`, expected **flips** | negating a yes/no question flips the answer (tag `yesno`) |
+| `refusal-consistency` | `rephrase_request` (LLM) | `refusal_match` | rephrasing a harmful request cannot flip a refusal into compliance (tag `safety`) |
 
 **Transforms:** `shuffle_documents`, `inject_distractor(position)`, `typos(rate)`,
-`number_format(style, scope, skip_years)`, `swap_entities(categories)`, `surface_noise(ops)`.
+`number_format(style, scope, skip_years)`, `swap_entities(categories)`, `surface_noise(ops)`;
+LLM-backed: `paraphrase`, `translate(language, roundtrip)`, `code_switch(style)`,
+`formality(direction)`, `negate`, `rephrase_request`.
 
 **Comparators:** `exact`, `token_f1`, `numeric_within(tol, relative, path)`,
-`json_fields_equal(paths)`, `set_equal(path)`, `json_schema_equal`. Each one returns a score
-from 0 to 1, which is what makes the self-variance baseline possible.
+`json_fields_equal(paths)`, `set_equal(path)`, `json_schema_equal`,
+`embedding_similarity(model)` (local multilingual MiniLM via fastembed, ONNX, no torch:
+`pip install "metamorph[embeddings]"`), `entails` (LLM judge: ENTAILS 1.0 / NEUTRAL 0.5 /
+CONTRADICTS 0.0 with a one-line reason), `verdict(labels, path)`, `refusal_match`. Each one
+returns a score from 0 to 1, which is what makes the self-variance baseline possible.
 
 Some care went into avoiding false alarms. Typos never touch numbers or words shorter than
 four letters, because a typo in "not" or "2019" changes the meaning, not the spelling. Number
@@ -186,14 +247,19 @@ the names back in the outputs before comparing.
 
 ```
 metamorph init [DIR]
-metamorph run [--config F] [--relations a,b] [--limit N] [--gate] [--no-cache]
-metamorph report [RUN_ID|latest] [--format json|junit] [--out F]
+metamorph run [--config F] [--relations a,b] [--limit N] [--gate] [--no-cache] [--budget-usd X]
+metamorph report [RUN_ID|latest] [--format json|junit|html] [--out F]
 metamorph relations list
 ```
 
-Each run writes `report.json` and `junit.xml` to `.metamorph/reports/<run-id>/`. In JUnit,
-only blocking violations are `<failure>`s, so a CI test reporter turns red exactly when the
-gate fails.
+Each run writes `report.json`, `junit.xml` and `report.html` to
+`.metamorph/reports/<run-id>/`. In JUnit, only blocking violations are `<failure>`s, so a CI
+test reporter turns red exactly when the gate fails. The HTML report is one static page with:
+- findings, including the violations the baseline excused;
+- a drawer of relations;
+- each violation as a side-by-side plate with a word diff, and a caliper showing score against
+  threshold and noise floor;
+- the unstable inputs.
 
 ## Project layout
 
@@ -208,7 +274,10 @@ src/metamorph/
   storage/       SQLAlchemy Core schema (portable to Postgres) and repository
   reports/       report model, JSON and JUnit renderers
   data/          distractor bank, Kenyan entity bank
-examples/rag_kenya/   demo RAG app with a planted bug
+  llm/           helper-LLM providers (Anthropic SDK, OpenAI-compatible, replay) + service
+  design/        specimen.css, the design system shared by the HTML report and the UI
+examples/rag_kenya/   demo RAG app with a planted bug (doc order)
+examples/cv_skills/   noisy skill extractor with a planted bug (code-switching) + measure.py
 tests/                unit, Hypothesis property, runner (scripted fake target), end-to-end
 ```
 
@@ -225,9 +294,9 @@ mypy
 
 - [x] **M1 Core engine:** types, 6 deterministic relations, python and http adapters,
       async runner, response cache, SQLite storage, JSON and JUnit reports, CLI and gate exit codes
-- [ ] **M2** LLM transforms (paraphrase, Swahili, Sheng code-switching) and comparators
+- [x] **M2** LLM transforms (paraphrase, Kiswahili, Sheng code-switching) and comparators
       (embeddings, LLM entailment judge), the self-variance report section, cost budget,
-      HTML report
+      record/replay, openai_compatible target, HTML report
 - [ ] **M3** Triage UI, per-relation precision, automatic promotion to BLOCKING
 - [ ] **M4** Relation miner, plus a GitHub Action that comments on PRs
 - [ ] **M5** Case study: violations found, false-alarm rate and cost per run
@@ -235,7 +304,12 @@ mypy
 ## Limitations
 
 - `token_f1` is a lexical proxy. It under-scores correct paraphrased answers, which is why the
-  built-ins start as WARNING. Embedding and entailment comparators arrive in M2.
+  LLM relations default to the `entails` judge and every relation starts as WARNING.
+- The default embedding model covers about 50 languages, but not Kiswahili. For Kiswahili or
+  Sheng outputs, prefer `entails` or `set_equal` over `embedding_similarity`.
+- The `entails` judge is itself an LLM and can be wrong. Its verdicts are cached and shown with
+  a reason, and triage (M3) measures how often each relation is right.
+- The CV demo's follow-ups are authored, not model-generated (no API key while building).
 - RAG relations need the app to accept injected context. A sealed endpoint that always
   retrieves for itself can only be tested with question-side relations.
 - The response cache is keyed on target identity and code version. A remote target that

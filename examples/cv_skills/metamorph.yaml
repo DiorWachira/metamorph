@@ -1,0 +1,39 @@
+# Metamorph config for the CV skill extractor demo:
+#   cd examples/cv_skills && metamorph run --gate
+#
+# LLM transforms replay authored follow-ups (recordings.jsonl), so this runs with no API key.
+# Switch to a live helper model with:  llm: {provider: anthropic}  (needs ANTHROPIC_API_KEY)
+# or a local one with:                 llm: {provider: openai_compatible, model: llama3.2}
+
+target:
+  type: python
+  callable: cv_app:extract
+
+seeds: seeds.jsonl
+
+fields:
+  text: cv_text
+
+llm:
+  provider: replay
+  recordings: recordings.jsonl
+
+relations:
+  - id: code-switch-invariance
+    mode: blocking
+    comparator: {name: set_equal, threshold: 0.8, params: {path: "$.skills"}}
+  - id: paraphrase-invariance
+    comparator: {name: set_equal, threshold: 0.8, params: {path: "$.skills"}}
+  - id: typo-robustness
+    comparator: {name: set_equal, threshold: 0.8, params: {path: "$.skills"}}
+  - id: entity-swap-invariance
+    comparator: {name: set_equal, threshold: 0.8, params: {path: "$.skills"}}
+  - json-schema-stability
+
+run:
+  seed: 11
+  samples: 3        # the extractor is noisy: measure each CV's self-agreement first
+  margin: 0.05
+
+gate:
+  max_blocking_violations: 0

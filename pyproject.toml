@@ -17,9 +17,13 @@ dependencies = [
     "httpx>=0.27",
     "sqlalchemy>=2.0",
     "jsonpath-ng>=1.6",
+    "jinja2>=3.1",
 ]
 
 [project.optional-dependencies]
+llm = ["anthropic>=2.0"]
+embeddings = ["fastembed>=0.5"]
+server = ["fastapi>=0.111", "uvicorn>=0.30"]
 examples = ["fastapi>=0.111", "uvicorn>=0.30", "scikit-learn>=1.5"]
 dev = [
     "pytest>=8.2",
@@ -28,7 +32,7 @@ dev = [
     "ruff>=0.5",
     "mypy>=1.10",
     "types-PyYAML",
-    "metamorph[examples]",
+    "metamorph[examples,llm,server]",
 ]
 
 [project.scripts]

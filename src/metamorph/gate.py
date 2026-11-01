@@ -11,8 +11,9 @@ from metamorph.types import Mode, Status
 def evaluate_gate(results: list[CaseResult], gate: GateConfig) -> GateResult:
     blocking = [r for r in results if r.relation.mode is Mode.BLOCKING]
     violations = sum(r.verdict.status is Status.VIOLATION for r in blocking)
-    errors = sum(r.verdict.status is Status.ERROR for r in results)
-    error_rate = errors / len(results) if results else 0.0
+    ran = [r for r in results if r.verdict.status is not Status.SKIPPED]
+    errors = sum(r.verdict.status is Status.ERROR for r in ran)
+    error_rate = errors / len(ran) if ran else 0.0
 
     reasons: list[str] = []
     if violations > gate.max_blocking_violations:

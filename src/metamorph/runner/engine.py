@@ -1,7 +1,8 @@
 """The run pipeline: plan follow-ups, call the target once per unique input, judge every case.
 
 1. Plan:  for each (seed, applicable relation, variant) apply the transform with an rng derived
-          from (run seed, relation, seed, variant). Deterministic, so re-runs hit the cache.
+          from (run seed, relation, seed, variant). Deterministic transforms reproduce exactly;
+          LLM transforms are cached, so re-runs reproduce them too and hit the target cache.
 2. Call:  collect unique (input, sample_idx) pairs (sources are shared across relations) and
           run them concurrently through the executor.
 3. Judge: compare each follow-up with its k source samples against the self-variance baseline.
@@ -14,7 +15,9 @@ from collections.abc import Callable
 from dataclasses import dataclass
 
 from metamorph.config import FieldsConfig, RunConfig
+from metamorph.llm.base import LLMError
 from metamorph.relations import Relation
+from metamorph.runner.budget import BudgetExhausted
 from metamorph.runner.cache import cache_key
 from metamorph.runner.executor import CallExecutor
 from metamorph.runner.judge import judge
@@ -49,14 +52,15 @@ class CaseResult:
     verdict: Verdict
 
 
-def plan(
+async def plan(
     relations: list[Relation],
     seeds: list[Seed],
     run: RunConfig,
     fields: FieldsConfig,
     resources: Resources,
 ) -> tuple[list[PlannedCase], list[Skip]]:
-    planned: list[PlannedCase] = []
+    """Apply every applicable transform. LLM transforms run concurrently; failures become skips."""
+    jobs: list[tuple[Relation, Seed, int]] = []
     skipped: list[Skip] = []
     for seed in seeds:
         for relation in relations:
@@ -65,14 +69,28 @@ def plan(
             if reason := relation.transform.missing(seed.input, fields):
                 skipped.append(Skip(relation.id, seed.id, reason))
                 continue
-            for variant in range(relation.spec.followups):
-                rng = derive_rng(run.seed, relation.id, seed.id, variant)
-                ctx = TransformContext(rng=rng, fields=fields, resources=resources)
-                followup = relation.transform.apply(seed.input, ctx)
-                if followup is None:
-                    skipped.append(Skip(relation.id, seed.id, "transform found nothing to change"))
-                    break
-                planned.append(PlannedCase(relation, seed, variant, followup))
+            jobs.extend((relation, seed, v) for v in range(relation.spec.followups))
+
+    async def apply(relation: Relation, seed: Seed, variant: int) -> FollowUp | str:
+        rng = derive_rng(run.seed, relation.id, seed.id, variant)
+        ctx = TransformContext(rng=rng, fields=fields, resources=resources, variant=variant)
+        try:
+            followup = await relation.transform.aapply(seed.input, ctx)
+        except BudgetExhausted:
+            return "not run: budget exhausted"
+        except LLMError as exc:
+            return f"transform failed: {exc}"
+        return followup or "transform found nothing to change"
+
+    outcomes = await asyncio.gather(*(apply(*job) for job in jobs))
+    planned: list[PlannedCase] = []
+    reported: set[tuple[str, str, str]] = set()
+    for (relation, seed, variant), outcome in zip(jobs, outcomes, strict=True):
+        if isinstance(outcome, FollowUp):
+            planned.append(PlannedCase(relation, seed, variant, outcome))
+        elif (relation.id, seed.id, outcome) not in reported:  # one skip per pair and reason
+            reported.add((relation.id, seed.id, outcome))
+            skipped.append(Skip(relation.id, seed.id, outcome))
     return planned, skipped
 
 

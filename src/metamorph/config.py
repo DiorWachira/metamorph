@@ -36,7 +36,40 @@ class PythonTargetConfig(_Strict):
     version: str | None = None
 
 
-TargetConfig = Annotated[HttpTargetConfig | PythonTargetConfig, Field(discriminator="type")]
+class OpenAICompatibleTargetConfig(_Strict):
+    """A prompt-only app: a system prompt plus a templated user message on a chat endpoint."""
+
+    type: Literal["openai_compatible"]
+    model: str
+    base_url: str = "http://localhost:11434/v1"  # Ollama by default
+    api_key_env: str | None = None
+    system_prompt_file: Path
+    user_template: str = "{text}"  # formatted with the seed input's fields
+    input_cost_per_mtok: float = 0.0
+    output_cost_per_mtok: float = 0.0
+    timeout_s: float = 120.0
+    version: str | None = None
+
+
+TargetConfig = Annotated[
+    HttpTargetConfig | PythonTargetConfig | OpenAICompatibleTargetConfig,
+    Field(discriminator="type"),
+]
+
+
+class LLMConfig(_Strict):
+    """The helper model used by LLM transforms (paraphrase, Swahili, Sheng...) and judges."""
+
+    provider: Literal["anthropic", "openai_compatible", "replay"] = "anthropic"
+    model: str = "claude-opus-5-5"
+    effort: Literal["low", "medium", "high", "xhigh", "max"] = "low"
+    base_url: str | None = None  # openai_compatible only
+    api_key_env: str | None = None
+    input_cost_per_mtok: float = 0.0  # openai_compatible only; Anthropic prices are built in
+    output_cost_per_mtok: float = 0.0
+    recordings: Path | None = None  # replay: file of recorded calls
+    record_to: Path | None = None  # append every live call here, for later replay
+    concurrency: int = Field(default=4, ge=1)
 
 
 class FieldsConfig(_Strict):
@@ -54,6 +87,7 @@ class RunConfig(_Strict):
     concurrency: int = Field(default=8, ge=1)
     retries: int = Field(default=3, ge=0)
     backoff_s: float = Field(default=0.5, ge=0.0)
+    budget_usd: float | None = Field(default=None, gt=0.0)  # stop starting paid calls beyond this
 
 
 class GateConfig(_Strict):
@@ -91,7 +125,8 @@ class RelationSpec(_Strict):
     comparator: ComparatorSpec
     expected: Expectation = Expectation.INVARIANT
     tags: list[str] = Field(default_factory=list)  # applies to seeds sharing a tag; empty = all
-    mode: Mode = Mode.WARNING
+    # None = learned from triage precision (relation_stats), defaulting to WARNING.
+    mode: Mode | None = None
     followups: int = Field(default=1, ge=1)
 
 
@@ -104,6 +139,7 @@ class Config(_Strict):
     gate: GateConfig = Field(default_factory=GateConfig)
     cache: CacheConfig = Field(default_factory=CacheConfig)
     resources: ResourcesConfig = Field(default_factory=ResourcesConfig)
+    llm: LLMConfig | None = None
     storage_dir: Path = Path(".metamorph")
 
     base_dir: Path = Field(default=Path("."), exclude=True)

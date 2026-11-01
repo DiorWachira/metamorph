@@ -25,6 +25,7 @@ class Status(StrEnum):
     VIOLATION = "violation"
     INCONCLUSIVE = "inconclusive"  # the comparator could not judge the pair
     ERROR = "error"  # the target failed on the source or follow-up
+    SKIPPED = "skipped"  # not run: the cost budget ran out first
 
 
 @dataclass(frozen=True)
@@ -56,6 +57,7 @@ class TargetOutput:
     cost_usd: float = 0.0
     cached: bool = False
     error: str | None = None
+    skipped: bool = False  # never called because the budget was exhausted
 
     @property
     def ok(self) -> bool:
@@ -74,10 +76,21 @@ class Comparison:
 class Verdict:
     status: Status
     score: float | None  # best agreement between the follow-up and any source sample
-    threshold: float  # the agreement threshold actually applied
+    threshold: float  # the agreement threshold actually applied (after the baseline)
     self_variance: float | None  # min pairwise agreement among source samples (None if k=1)
     detail: str = ""
     comparisons: list[Comparison] = field(default_factory=list)
+    nominal_threshold: float | None = None  # the comparator threshold before the baseline
+
+    @property
+    def excused_by_baseline(self) -> bool:
+        """Would have been a violation without the self-variance baseline."""
+        return (
+            self.status is Status.PASS
+            and self.score is not None
+            and self.nominal_threshold is not None
+            and self.score < self.nominal_threshold
+        )
 
     @property
     def is_violation(self) -> bool:

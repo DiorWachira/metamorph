@@ -1,13 +1,15 @@
-"""The report model: one run read back from storage. Every report format renders this."""
+"""The report model: one run read back from storage. Every report format and the UI render this."""
 
 from __future__ import annotations
 
 from datetime import datetime
-from typing import Any
+from typing import Any, Literal
 
-from pydantic import BaseModel
+from pydantic import BaseModel, computed_field
 
 from metamorph.types import Mode, Status
+
+Triage = Literal["unreviewed", "true_bug", "false_alarm"]
 
 
 class OutputView(BaseModel):
@@ -21,13 +23,15 @@ class OutputView(BaseModel):
 
 class CaseView(BaseModel):
     id: int
+    run_id: str
     relation_id: str
     seed_id: str
     variant: int
     mode: Mode
     status: Status
     score: float | None
-    threshold: float
+    threshold: float  # applied threshold (after the self-variance baseline)
+    nominal_threshold: float | None  # the comparator's own threshold
     self_variance: float | None
     detail: str
     followup_note: str
@@ -35,17 +39,37 @@ class CaseView(BaseModel):
     followup_input: dict[str, Any]
     source_outputs: list[OutputView]
     followup_output: OutputView
-    triage: str
+    triage: Triage
+    note: str | None = None
+
+    @computed_field  # type: ignore[prop-decorator]
+    @property
+    def excused_by_baseline(self) -> bool:
+        """Below the comparator threshold, but within the target's own noise: not a violation."""
+        return (
+            self.status is Status.PASS
+            and self.score is not None
+            and self.nominal_threshold is not None
+            and self.score < self.nominal_threshold
+        )
 
 
 class RelationSummary(BaseModel):
     id: str
     mode: Mode
+    mode_source: str = "default"
+    description: str = ""
+    transform: str = ""
+    comparator: str = ""
+    threshold: float | None = None
+    expected: str = "invariant"
     cases: int = 0
     passed: int = 0
     violations: int = 0
     inconclusive: int = 0
     errors: int = 0
+    skipped: int = 0
+    excused: int = 0  # would have been violations without the self-variance baseline
 
 
 class GateResult(BaseModel):
@@ -63,6 +87,16 @@ class SkipView(BaseModel):
     reason: str
 
 
+class UnstableInput(BaseModel):
+    """A seed the target answers inconsistently on its own, before any transform."""
+
+    seed_id: str
+    relation_id: str
+    comparator: str
+    self_agreement: float
+    threshold: float
+
+
 class RunView(BaseModel):
     id: str
     started_at: datetime
@@ -71,6 +105,9 @@ class RunView(BaseModel):
     status: str
     total_cost_usd: float
     stats: dict[str, Any]
+    llm: dict[str, Any] | None = None
+    budget: dict[str, Any] | None = None
+    samples: int = 1
 
 
 class RunReport(BaseModel):
@@ -83,3 +120,32 @@ class RunReport(BaseModel):
     @property
     def violations(self) -> list[CaseView]:
         return [c for c in self.cases if c.status is Status.VIOLATION]
+
+    @computed_field  # type: ignore[prop-decorator]
+    @property
+    def unstable_inputs(self) -> list[UnstableInput]:
+        """Seeds whose own samples disagree below the comparator threshold (lowest first)."""
+        by_relation = {r.id: r for r in self.relations}
+        found: dict[tuple[str, str], UnstableInput] = {}
+        for c in self.cases:
+            if c.self_variance is None or c.nominal_threshold is None:
+                continue
+            if c.self_variance < c.nominal_threshold:
+                found[(c.seed_id, c.relation_id)] = UnstableInput(
+                    seed_id=c.seed_id,
+                    relation_id=c.relation_id,
+                    comparator=by_relation[c.relation_id].comparator
+                    if c.relation_id in by_relation
+                    else "",
+                    self_agreement=c.self_variance,
+                    threshold=c.nominal_threshold,
+                )
+        return sorted(found.values(), key=lambda u: u.self_agreement)
+
+    @computed_field  # type: ignore[prop-decorator]
+    @property
+    def baseline_effect(self) -> dict[str, int]:
+        """Violations with and without the self-variance baseline: the false alarms it removed."""
+        actual = len(self.violations)
+        excused = sum(c.excused_by_baseline for c in self.cases)
+        return {"naive_violations": actual + excused, "violations": actual, "excused": excused}

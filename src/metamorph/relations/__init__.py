@@ -4,7 +4,7 @@ from __future__ import annotations
 
 from dataclasses import dataclass
 from importlib import resources
-from typing import Any
+from typing import Any, Literal
 
 import yaml
 from pydantic import ValidationError
@@ -12,8 +12,11 @@ from pydantic import ValidationError
 from metamorph.comparators import Comparator, build_comparator
 from metamorph.config import Config, RelationSpec
 from metamorph.errors import ConfigError
+from metamorph.services import Services
 from metamorph.transforms import Transform, build_transform
 from metamorph.types import Expectation, Mode, Seed
+
+ModeSource = Literal["config", "learned", "default"]
 
 
 @dataclass(frozen=True)
@@ -22,14 +25,13 @@ class Relation:
     transform: Transform
     comparator: Comparator
     threshold: float
+    mode: Mode = Mode.WARNING
+    # Where the mode came from: pinned in config, learned from triage precision, or the default.
+    mode_source: ModeSource = "default"
 
     @property
     def id(self) -> str:
         return self.spec.id
-
-    @property
-    def mode(self) -> Mode:
-        return self.spec.mode
 
     @property
     def expected(self) -> Expectation:
@@ -38,15 +40,28 @@ class Relation:
     def applies_to(self, seed: Seed) -> bool:
         return not self.spec.tags or bool(seed.tags & set(self.spec.tags))
 
+    def bind(self, services: Services) -> None:
+        self.transform.bind(services)
+        self.comparator.bind(services)
+
     @classmethod
-    def from_spec(cls, spec: RelationSpec) -> Relation:
+    def from_spec(cls, spec: RelationSpec, learned_mode: Mode | None = None) -> Relation:
         comparator = build_comparator(spec.comparator.name, spec.comparator.params)
         threshold = spec.comparator.threshold
+        source: ModeSource
+        if spec.mode is not None:
+            mode, source = spec.mode, "config"
+        elif learned_mode is not None:
+            mode, source = learned_mode, "learned"
+        else:
+            mode, source = Mode.WARNING, "default"
         return cls(
             spec=spec,
             transform=build_transform(spec.transform.name, spec.transform.params),
             comparator=comparator,
             threshold=comparator.default_threshold if threshold is None else threshold,
+            mode=mode,
+            mode_source=source,
         )
 
 
@@ -69,8 +84,17 @@ def _merge(base: dict[str, Any], override: dict[str, Any]) -> dict[str, Any]:
     return merged
 
 
-def resolve_relations(config: Config, only: list[str] | None = None) -> list[Relation]:
-    """Build the relations enabled in config, optionally narrowed to the ids in `only`."""
+def resolve_relations(
+    config: Config,
+    only: list[str] | None = None,
+    learned_modes: dict[str, Mode] | None = None,
+) -> list[Relation]:
+    """Build the relations enabled in config, optionally narrowed to the ids in `only`.
+
+    A relation's mode is the one pinned in config, else the one learned from triage
+    (`learned_modes`), else WARNING.
+    """
+    learned_modes = learned_modes or {}
     catalogue = builtin_specs()
     relations: list[Relation] = []
     for entry in config.relations:
@@ -84,7 +108,7 @@ def resolve_relations(config: Config, only: list[str] | None = None) -> list[Rel
             spec = RelationSpec.model_validate(_merge(catalogue.get(rel_id, {}), raw))
         except ValidationError as exc:
             raise ConfigError(f"invalid relation {rel_id!r}:\n{exc}") from exc
-        relations.append(Relation.from_spec(spec))
+        relations.append(Relation.from_spec(spec, learned_modes.get(rel_id)))
 
     ids = [r.id for r in relations]
     if len(ids) != len(set(ids)):

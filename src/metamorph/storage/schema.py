@@ -75,6 +75,7 @@ verdicts = Table(
     Column("self_variance", Float),
     Column("triage", String(20), nullable=False, default="unreviewed"),
     Column("note", Text),
+    Column("triaged_at", DateTime(timezone=True)),
 )
 
 relation_stats = Table(
@@ -85,5 +86,6 @@ relation_stats = Table(
     Column("true_bugs", Integer, nullable=False, default=0),
     Column("false_alarms", Integer, nullable=False, default=0),
     Column("precision", Float),
-    Column("mode", String(10), nullable=False),
+    Column("mode", String(10)),  # learned mode; NULL until enough violations are triaged
+    Column("updated_at", DateTime(timezone=True)),
 )

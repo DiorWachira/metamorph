@@ -1,11 +1,13 @@
-"""A scripted target for testing the runner without network calls."""
+"""Scripted fakes (target and helper LLM) for testing without network calls."""
 
 from __future__ import annotations
 
+import json
 from collections import Counter
 from collections.abc import Callable
 
 from metamorph.adapters.base import Target, TargetResponse
+from metamorph.llm.base import LLMProvider, LLMRequest, LLMResult
 from metamorph.types import Input
 from metamorph.util import canonical_json
 
@@ -36,3 +38,30 @@ class ScriptedTarget(Target):
         if isinstance(result, Exception):
             raise result
         return TargetResponse(text=result, cost_usd=self.cost_per_call)
+
+
+class ScriptedLLM(LLMProvider):
+    """A helper-LLM fake: `script(request) -> str | Exception`; records every request."""
+
+    def __init__(self, script: Callable[[LLMRequest], str | Exception], cost: float = 0.0) -> None:
+        self.model = "scripted-llm"
+        self.script = script
+        self.cost = cost
+        self.requests: list[LLMRequest] = []
+
+    async def complete(self, request: LLMRequest) -> LLMResult:
+        self.requests.append(request)
+        result = self.script(request)
+        if isinstance(result, Exception):
+            raise result
+        return LLMResult(text=result, model=self.model, cost_usd=self.cost)
+
+
+def rewrites(mapping: Callable[[str], str]) -> Callable[[LLMRequest], str]:
+    """Script that answers rewrite requests with mapping(input_text) as structured JSON."""
+
+    def script(request: LLMRequest) -> str:
+        text = request.prompt.split("<<<\n", 1)[1].split("\n>>>", 1)[0]
+        return json.dumps({"rewritten": mapping(text)})
+
+    return script

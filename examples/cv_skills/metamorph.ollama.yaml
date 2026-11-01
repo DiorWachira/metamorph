@@ -1,0 +1,36 @@
+# The real thing: the skill-extraction prompt in prompts/system.txt, served by a local model.
+#   ollama pull llama3.2 && ollama serve
+#   metamorph run --config metamorph.ollama.yaml
+# Point base_url/model at any OpenAI-compatible endpoint (OpenAI, Groq, vLLM) to test those.
+
+target:
+  type: openai_compatible
+  base_url: http://localhost:11434/v1
+  model: llama3.2
+  system_prompt_file: prompts/system.txt
+  user_template: "{cv_text}"
+
+seeds: seeds.jsonl
+
+fields:
+  text: cv_text
+
+llm:
+  provider: openai_compatible
+  base_url: http://localhost:11434/v1
+  model: llama3.2
+  record_to: recordings.local.jsonl
+
+relations:
+  - id: code-switch-invariance
+    comparator: {name: set_equal, threshold: 0.8, params: {path: "$.skills"}}
+  - id: paraphrase-invariance
+    comparator: {name: set_equal, threshold: 0.8, params: {path: "$.skills"}}
+  - id: translation-roundtrip-sw
+    comparator: {name: set_equal, threshold: 0.8, params: {path: "$.skills"}}
+  - json-schema-stability
+
+run:
+  samples: 3
+  concurrency: 2
+  budget_usd: 1.00

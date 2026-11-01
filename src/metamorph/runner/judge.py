@@ -12,6 +12,7 @@ produces on its own. With k = 1 there is no baseline and the threshold applies.
 
 from __future__ import annotations
 
+import asyncio
 from itertools import combinations
 
 from metamorph.errors import NotComparable
@@ -27,6 +28,8 @@ async def judge(
     margin: float,
 ) -> Verdict:
     threshold = relation.threshold
+    if followup_output.skipped or any(s.skipped for s in sources):
+        return Verdict(Status.SKIPPED, None, threshold, None, "not run: budget exhausted")
     ok_sources = [s for s in sources if s.ok]
     if not ok_sources:
         return Verdict(Status.ERROR, None, threshold, None, f"source failed: {sources[0].error}")
@@ -41,8 +44,13 @@ async def judge(
     comparator = relation.comparator
 
     try:
-        comparisons = [await comparator.acompare(a, followup_text) for a in source_texts]
-        pairwise = [await comparator.acompare(a, b) for a, b in combinations(source_texts, 2)]
+        # Concurrent: LLM-judge comparators make one network call per pair.
+        comparisons = list(
+            await asyncio.gather(*(comparator.acompare(a, followup_text) for a in source_texts))
+        )
+        pairwise = await asyncio.gather(
+            *(comparator.acompare(a, b) for a, b in combinations(source_texts, 2))
+        )
     except NotComparable as exc:
         return Verdict(Status.INCONCLUSIVE, None, threshold, None, str(exc))
 
@@ -67,4 +75,5 @@ async def judge(
         self_variance=baseline,
         detail=detail,
         comparisons=comparisons,
+        nominal_threshold=threshold,
     )

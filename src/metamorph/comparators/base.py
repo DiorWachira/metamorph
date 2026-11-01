@@ -14,6 +14,7 @@ from typing import Any, ClassVar
 from jsonpath_ng.ext.parser import parse as parse_jsonpath
 
 from metamorph.errors import ConfigError, NotComparable
+from metamorph.services import Services
 from metamorph.types import Comparison
 
 
@@ -28,6 +29,9 @@ class Comparator(ABC):
     async def acompare(self, a: str, b: str) -> Comparison:
         """Async entry point used by the runner; LLM-backed comparators override this."""
         return self.compare(a, b)
+
+    def bind(self, services: Services) -> None:  # noqa: B027  (optional hook)
+        """Receive run-scoped services; LLM-backed comparators keep the helper model."""
 
 
 _REGISTRY: dict[str, type[Comparator]] = {}

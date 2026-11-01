@@ -1,0 +1,521 @@
+/*
+ * Specimen Cabinet: the Metamorph design system.
+ *
+ * Concept: a natural-history collection. Every test input is a specimen; a metamorphic relation
+ * asks whether the same specimen, drawn in another form, is still the same species. References:
+ * Maria Sibylla Merian's Metamorphosis insectorum Surinamensium (1705), whose plates show one
+ * creature in several forms; herbarium determination slips (re-identifications are added on
+ * dated slips, never written over the label); entomology drawers with unit trays.
+ *
+ * Palette: rag paper and iron-gall ink, plus ONE signal colour, cochineal carmine, a pigment
+ * made from insects and reserved for mutations (violations). Status colours are muted inks.
+ *
+ * This file is canonical: the HTML report inlines it and the triage UI imports it.
+ */
+
+:root {
+  --paper: #f2ecdf;
+  --paper-2: #e8e0cd;
+  --paper-3: #fbf8f1;
+  --ink: #1e1b16;
+  --ink-2: #4a443a;
+  --ink-3: #6f665a;
+  --rule: #cdc2ab;
+  --rule-strong: #1e1b16;
+
+  --carmine: #a3162b; /* signal: mutation / violation, nothing else */
+  --carmine-wash: #f3dcdc;
+  --verdigris: #3d6b56; /* pass */
+  --ochre: #8a5d0c; /* excused by baseline, warning mode */
+  --ochre-wash: #f1e4c4;
+  --slate: #59626e; /* error, skipped, inconclusive */
+
+  --font-display: "Libre Caslon Display", "Libre Caslon Text", Georgia, serif;
+  --font-serif: "Libre Caslon Text", Georgia, "Times New Roman", serif;
+  --font-sans: "IBM Plex Sans", system-ui, -apple-system, "Segoe UI", sans-serif;
+  --font-mono: "IBM Plex Mono", ui-monospace, "Cascadia Mono", Consolas, monospace;
+
+  --radius: 2px;
+  --shadow-hard: 3px 3px 0 var(--ink);
+  --gutter: clamp(16px, 4vw, 40px);
+  --measure: 72ch;
+  color-scheme: light;
+}
+
+@media (prefers-color-scheme: dark) {
+  :root:not([data-theme="light"]) {
+    --paper: #15120e;
+    --paper-2: #1e1a15;
+    --paper-3: #26211a;
+    --ink: #ede5d3;
+    --ink-2: #bdb29c;
+    --ink-3: #998e79;
+    --rule: #3b342a;
+    --rule-strong: #ede5d3;
+    --carmine: #ec5f70;
+    --carmine-wash: #3a1a1e;
+    --verdigris: #86bca1;
+    --ochre: #dcaa4c;
+    --ochre-wash: #33291a;
+    --slate: #9aa3ae;
+    color-scheme: dark;
+  }
+}
+
+:root[data-theme="dark"] {
+  --paper: #15120e;
+  --paper-2: #1e1a15;
+  --paper-3: #26211a;
+  --ink: #ede5d3;
+  --ink-2: #bdb29c;
+  --ink-3: #998e79;
+  --rule: #3b342a;
+  --rule-strong: #ede5d3;
+  --carmine: #ec5f70;
+  --carmine-wash: #3a1a1e;
+  --verdigris: #86bca1;
+  --ochre: #dcaa4c;
+  --ochre-wash: #33291a;
+  --slate: #9aa3ae;
+  color-scheme: dark;
+}
+
+/* ---- Base --------------------------------------------------------------------------------- */
+
+*,
+*::before,
+*::after {
+  box-sizing: border-box;
+}
+
+body {
+  margin: 0;
+  background: var(--paper);
+  color: var(--ink);
+  font: 15px/1.55 var(--font-sans);
+  -webkit-font-smoothing: antialiased;
+  overflow-x: hidden;
+}
+
+h1,
+h2,
+h3 {
+  font-family: var(--font-display);
+  font-weight: 400; /* single-weight display face: never faux-bold */
+  line-height: 1.05;
+  margin: 0;
+  letter-spacing: -0.01em;
+  overflow-wrap: anywhere;
+}
+
+a {
+  color: inherit;
+  text-decoration-color: var(--rule);
+  text-underline-offset: 3px;
+}
+a:hover {
+  text-decoration-color: currentColor;
+}
+
+code,
+pre,
+.mono {
+  font-family: var(--font-mono);
+  font-size: 0.86em;
+}
+
+:focus-visible {
+  outline: 2px solid var(--ink);
+  outline-offset: 2px;
+}
+
+/* ---- Typographic roles -------------------------------------------------------------------- */
+
+.label {
+  font: 500 11px/1.3 var(--font-mono);
+  letter-spacing: 0.12em;
+  text-transform: uppercase;
+  color: var(--ink-2);
+}
+
+.caption {
+  font: italic 13px/1.45 var(--font-serif);
+  color: var(--ink-2);
+}
+
+.numeral {
+  font-family: var(--font-mono);
+  font-variant-numeric: tabular-nums;
+}
+
+.section-head {
+  display: flex;
+  align-items: baseline;
+  gap: 14px;
+  border-top: 1px solid var(--rule-strong);
+  padding-top: 10px;
+  margin: 48px 0 18px;
+}
+.section-head .section-no {
+  font: 500 12px var(--font-mono);
+  color: var(--ink-2);
+}
+.section-head h2 {
+  font-size: clamp(26px, 3.4vw, 36px);
+}
+
+/* ---- Status inks (functional, muted) ------------------------------------------------------ */
+
+.st-pass { --st: var(--verdigris); }
+.st-intact { --st: var(--ink-3); } /* intact pins stay neutral so mutations carry the colour */
+.st-violation { --st: var(--carmine); }
+.st-excused { --st: var(--ochre); }
+.st-inconclusive,
+.st-error,
+.st-skipped { --st: var(--slate); }
+
+.status-chip {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  font: 500 11px var(--font-mono);
+  letter-spacing: 0.1em;
+  text-transform: uppercase;
+  color: var(--st, var(--ink-2));
+}
+.status-chip::before {
+  content: "";
+  width: 8px;
+  height: 8px;
+  border-radius: 50%;
+  background: var(--st, var(--ink-2));
+}
+.st-inconclusive.status-chip::before,
+.st-skipped.status-chip::before {
+  background: transparent;
+  border: 1.5px solid var(--st);
+}
+
+.mode-tag {
+  font: 600 10px var(--font-mono);
+  letter-spacing: 0.14em;
+  text-transform: uppercase;
+  padding: 2px 6px;
+  border: 1px solid var(--ink);
+  border-radius: var(--radius);
+}
+.mode-tag.blocking {
+  background: var(--ink);
+  color: var(--paper);
+}
+
+/* ---- Signature 1: the specimen label (pin label) ------------------------------------------- */
+
+.specimen-label {
+  background: var(--paper-3);
+  border: 1px solid var(--ink);
+  border-radius: var(--radius);
+  padding: 8px 10px 9px;
+  font: 11px/1.4 var(--font-mono);
+  color: var(--ink);
+  position: relative;
+  min-width: 0;
+}
+.specimen-label .cat {
+  font-weight: 500;
+  letter-spacing: 0.08em;
+}
+.specimen-label .taxon {
+  font: italic 14px/1.25 var(--font-serif);
+  margin: 3px 0 2px;
+  overflow-wrap: anywhere;
+}
+/* the pin hole */
+.specimen-label::before {
+  content: "";
+  position: absolute;
+  top: 7px;
+  right: 8px;
+  width: 5px;
+  height: 5px;
+  border-radius: 50%;
+  border: 1px solid var(--ink-2);
+}
+
+/* ---- Signature 2: the metamorphosis plate (side-by-side forms) ----------------------------- */
+
+.plate {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) auto minmax(0, 1fr);
+  border: 1px solid var(--ink);
+  background: var(--paper-3);
+}
+.plate-form {
+  padding: 16px 18px 18px;
+  min-width: 0;
+}
+.plate-form .fig {
+  font: italic 13px var(--font-serif);
+  color: var(--ink-2);
+  margin-bottom: 8px;
+}
+.plate-form .fig b {
+  font: 500 11px var(--font-mono);
+  font-style: normal;
+  letter-spacing: 0.12em;
+  color: var(--ink);
+  margin-right: 6px;
+}
+.plate-form .body {
+  white-space: pre-wrap;
+  overflow-wrap: anywhere;
+  font: 14px/1.6 var(--font-serif);
+}
+.plate-instar {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 6px;
+  padding: 0 10px;
+  border-inline: 1px dashed var(--rule);
+  font: 500 10px var(--font-mono);
+  letter-spacing: 0.14em;
+  text-transform: uppercase;
+  color: var(--ink-2);
+  writing-mode: vertical-rl;
+}
+.diff-del {
+  text-decoration: line-through;
+  text-decoration-color: var(--carmine);
+  color: var(--ink-2);
+  background: var(--carmine-wash);
+}
+.diff-ins {
+  text-decoration: underline 2px;
+  text-decoration-color: var(--carmine);
+  text-underline-offset: 3px;
+  background: var(--carmine-wash);
+}
+
+@media (max-width: 720px) {
+  .plate {
+    grid-template-columns: minmax(0, 1fr);
+  }
+  .plate-instar {
+    writing-mode: horizontal-tb;
+    flex-direction: row;
+    border-inline: 0;
+    border-block: 1px dashed var(--rule);
+    padding: 6px 0;
+  }
+}
+
+/* ---- Signature 3: the specimen drawer (relation x cases) ----------------------------------- */
+
+.drawer {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(260px, 1fr));
+  gap: 10px;
+  padding: 10px;
+  background: var(--paper-2);
+  border: 1px solid var(--ink);
+}
+.tray {
+  background: var(--paper-3);
+  border: 1px solid var(--rule);
+  border-radius: var(--radius);
+  padding: 10px 12px 12px;
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  min-width: 0;
+}
+.tray-head {
+  display: flex;
+  justify-content: space-between;
+  align-items: start;
+  gap: 8px;
+}
+.tray-head .name {
+  font: italic 16px/1.2 var(--font-serif);
+  overflow-wrap: anywhere;
+}
+.pins {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 5px;
+}
+.pin {
+  width: 11px;
+  height: 11px;
+  border-radius: 50%;
+  background: var(--st, var(--ink));
+  border: 1.5px solid var(--st, var(--ink));
+}
+.pin.st-pass {
+  background: var(--ink-3);
+  border-color: var(--ink-3);
+}
+.pin.st-excused {
+  background: transparent;
+  border-color: var(--ochre);
+}
+.pin.st-inconclusive,
+.pin.st-skipped,
+.pin.st-error {
+  background: transparent;
+  border-style: dashed;
+}
+
+/* ---- Signature 4: the determination slip and stamp ----------------------------------------- */
+
+.det-slip {
+  background: var(--paper-3);
+  border: 1px solid var(--ink);
+  border-left: 6px double var(--ink);
+  padding: 12px 14px;
+  font: 12px/1.5 var(--font-mono);
+}
+.det-slip .det-line {
+  border-bottom: 1px solid var(--rule);
+  padding: 4px 0;
+}
+
+.stamp {
+  display: inline-block;
+  font: 600 13px/1 var(--font-mono);
+  letter-spacing: 0.18em;
+  text-transform: uppercase;
+  padding: 7px 10px 6px;
+  border: 2px solid currentColor;
+  outline: 1px solid currentColor;
+  outline-offset: 2px;
+  transform: rotate(-3deg);
+  opacity: 0.92;
+}
+.stamp.carmine { color: var(--carmine); }
+.stamp.ink { color: var(--ink); }
+.stamp.verdigris { color: var(--verdigris); }
+.stamp.slate { color: var(--slate); }
+
+/* ---- Signature 5: the variance caliper (score vs noise floor vs threshold) ---------------- */
+
+.caliper {
+  position: relative;
+  height: 34px;
+  min-width: 160px;
+}
+.caliper .scale {
+  position: absolute;
+  inset: 14px 0 auto 0;
+  height: 1px;
+  background: var(--ink);
+}
+.caliper .tick {
+  position: absolute;
+  top: 10px;
+  width: 1px;
+  height: 9px;
+  background: var(--ink);
+}
+.caliper .noise {
+  position: absolute;
+  top: 9px;
+  height: 11px;
+  background: repeating-linear-gradient(
+    135deg,
+    var(--ochre) 0 1px,
+    transparent 1px 4px
+  );
+  border-inline: 1px solid var(--ochre);
+}
+.caliper .threshold {
+  position: absolute;
+  top: 4px;
+  width: 0;
+  height: 22px;
+  border-left: 1.5px dashed var(--ink);
+}
+.caliper .score {
+  position: absolute;
+  top: 9px;
+  width: 11px;
+  height: 11px;
+  margin-left: -5.5px;
+  border-radius: 50%;
+  background: var(--st, var(--ink));
+}
+.caliper .ends {
+  position: absolute;
+  top: 22px;
+  inset-inline: 0;
+  display: flex;
+  justify-content: space-between;
+  font: 10px var(--font-mono);
+  color: var(--ink-2);
+}
+
+/* ---- Tables (ledger) ----------------------------------------------------------------------- */
+
+.ledger {
+  width: 100%;
+  border-collapse: collapse;
+  font-size: 14px;
+}
+.ledger th {
+  text-align: left;
+  font: 500 11px var(--font-mono);
+  letter-spacing: 0.1em;
+  text-transform: uppercase;
+  color: var(--ink-2);
+  border-bottom: 1px solid var(--ink);
+  padding: 8px 10px;
+}
+.ledger td {
+  border-bottom: 1px solid var(--rule);
+  padding: 10px;
+  vertical-align: top;
+}
+.ledger td.num,
+.ledger th.num {
+  text-align: right;
+  font-family: var(--font-mono);
+  font-variant-numeric: tabular-nums;
+}
+
+/* ---- Buttons ------------------------------------------------------------------------------- */
+
+.btn {
+  font: 500 13px var(--font-sans);
+  color: var(--ink);
+  background: var(--paper-3);
+  border: 1px solid var(--ink);
+  border-radius: var(--radius);
+  padding: 8px 14px;
+  cursor: pointer;
+  transition: transform 80ms ease, box-shadow 80ms ease;
+}
+.btn:hover {
+  transform: translate(-2px, -2px);
+  box-shadow: var(--shadow-hard);
+}
+.btn:active {
+  transform: none;
+  box-shadow: none;
+}
+.btn.primary {
+  background: var(--ink);
+  color: var(--paper);
+}
+.btn[aria-pressed="true"] {
+  background: var(--ink);
+  color: var(--paper);
+}
+
+@media (prefers-reduced-motion: reduce) {
+  * {
+    transition: none !important;
+    animation: none !important;
+  }
+}

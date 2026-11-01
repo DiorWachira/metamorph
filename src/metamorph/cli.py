@@ -99,7 +99,12 @@ def run(
     ] = None,
     limit: Annotated[int | None, typer.Option(min=1, help="Use only the first N seeds.")] = None,
     gate: Annotated[bool, typer.Option("--gate", help="Exit 1 if the gate fails.")] = False,
-    no_cache: Annotated[bool, typer.Option("--no-cache", help="Ignore cached responses.")] = False,
+    no_cache: Annotated[
+        bool, typer.Option("--no-cache", help="Re-call the target (LLM follow-ups stay cached).")
+    ] = False,
+    budget_usd: Annotated[
+        float | None, typer.Option(min=0.0, help="Stop starting paid calls beyond this spend.")
+    ] = None,
 ) -> None:
     """Generate follow-ups, call the target, check relations and write reports."""
     cfg = load_config(config)
@@ -107,6 +112,7 @@ def run(
         relations=[r.strip() for r in relations.split(",")] if relations else None,
         limit=limit,
         use_cache=not no_cache,
+        budget_usd=budget_usd,
     )
 
     with Progress(console=console, transient=True) as progress:
@@ -138,10 +144,10 @@ def report(
     out: Annotated[Path | None, typer.Option("--out", "-o", help="Write to a file.")] = None,
     config: ConfigOption = Path(DEFAULT_CONFIG_NAME),
 ) -> None:
-    """Render a stored run as JSON or JUnit XML."""
-    store = open_store(load_config(config))
-    resolved = store.latest_run_id() if run_id == "latest" else run_id
-    loaded = store.load_report(resolved) if resolved else None
+    """Render a stored run as JSON, JUnit XML or HTML."""
+    with open_store(load_config(config)) as store:
+        resolved = store.latest_run_id() if run_id == "latest" else run_id
+        loaded = store.load_report(resolved) if resolved else None
     if loaded is None:
         raise MetamorphError(f"no run found with id {run_id!r}")
     rendered = RENDERERS[format][0](loaded)
@@ -189,6 +195,11 @@ def _print_summary(report: RunReport) -> None:
         f"calls: {stats.get('requested', 0)} requested, {stats.get('cache_hits', 0)} cached, "
         f"{stats.get('errors', 0)} failed  cost: ${report.run.total_cost_usd:.4f}"
     )
+    if llm := report.run.llm:
+        console.print(
+            f"helper model {escape(str(llm['model']))}: {llm['calls']} calls, "
+            f"{llm['cache_hits']} cached, {llm['failures']} failed"
+        )
     table = Table("relation", "mode", "cases", "pass", "violations", "inconclusive", "errors")
     for r in report.relations:
         mode = "[bold]BLOCKING[/]" if r.mode is Mode.BLOCKING else "warning"
@@ -207,6 +218,15 @@ def _print_summary(report: RunReport) -> None:
     if len(report.violations) > 10:
         console.print(f"  ...and {len(report.violations) - 10} more (see the JSON report)")
 
+    effect = report.baseline_effect
+    if report.run.samples > 1:
+        console.print(
+            f"self-variance baseline (k={report.run.samples}): {effect['excused']} of "
+            f"{effect['naive_violations']} disagreements were the target's own noise; "
+            f"{len({u.seed_id for u in report.unstable_inputs})} inputs unstable on their own"
+        )
+    if report.run.status == "budget_exhausted":
+        console.print("[yellow]budget exhausted: the run stopped early; unrun cases are skipped[/]")
     if report.skipped:
         console.print(f"[dim]{len(report.skipped)} relation/seed pairs skipped (see report)[/]")
     errors = [c for c in report.cases if c.status is Status.ERROR]

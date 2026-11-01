@@ -1,0 +1,35 @@
+{
+  "_note": "Follow-up inputs authored offline (no API key was available) and stored in replay format by author_recordings.py. Re-record with a real model: set llm.provider to anthropic and llm.record_to.",
+  "wanjiru": {
+    "code_switch": "Manze, Wanjiru Kamau ni data analyst hapa Nairobi, ako na 4 years za experience. Yeye ni moto kwa Python, SQL na Power BI. Pia amefanya kazi na Excel dashboards za county health data.",
+    "paraphrase": "Based in Nairobi, Wanjiru Kamau has spent four years as a data analyst. Her strengths include Python, SQL and Power BI, and she has built Excel dashboards for county health data."
+  },
+  "otieno": {
+    "code_switch": "Otieno Ochieng ni backend developer kwa fintech moja Kisumu. Jamaa anajua Django, PostgreSQL na REST APIs vizuri sana. Amejenga M-Pesa integrations akitumia Daraja API.",
+    "paraphrase": "Otieno Ochieng works as a backend developer for a fintech company in Kisumu. He is experienced in Django, PostgreSQL and REST APIs, and he built M-Pesa integrations on top of the Daraja API."
+  },
+  "akinyi": {
+    "code_switch": "Akinyi Atieno ni frontend engineer. Ana skills poa za React, TypeScript na Figma. Alifanya kazi na Tailwind CSS kwa online shop ya retailer mmoja wa Mombasa.",
+    "paraphrase": "Akinyi Atieno is an engineer focused on the frontend. She is skilled in React, TypeScript and Figma, and she worked with Tailwind CSS to build an online shop for a retailer in Mombasa."
+  },
+  "kiprono": {
+    "code_switch": "Kiprono Korir ni cloud engineer Eldoret. Yeye ni mnoma kwa AWS, Terraform na Linux administration. Pia ako certified kwa Kubernetes.",
+    "paraphrase": "Kiprono Korir, a cloud engineer from Eldoret, has deep expertise in AWS, Terraform and Linux administration and holds a Kubernetes certification."
+  },
+  "muthoni": {
+    "code_switch": "Muthoni Wambui ni project manager. Ako fiti kwa Jira, stakeholder management na budgeting. Ame-lead delivery teams akitumia Scrum.",
+    "paraphrase": "Muthoni Wambui manages projects. Jira, stakeholder management and budgeting are among her core skills, and she runs delivery teams with Scrum."
+  },
+  "barasa": {
+    "code_switch": "Barasa Wafula ni mobile developer. Anaweza Kotlin, Flutter na Firebase poa sana. Ali-work na Google Maps API kwa app ya boda boda delivery.",
+    "paraphrase": "Barasa Wafula develops mobile apps. He is skilled in Kotlin, Flutter and Firebase, and he worked with the Google Maps API for a boda boda delivery app."
+  },
+  "amina": {
+    "code_switch": "Amina Hassan ni machine learning engineer. Ako na experience kubwa ya PyTorch, scikit-learn na NLP. Amefanya kazi na datasets za Kiswahili text classification.",
+    "paraphrase": "Amina Hassan is an engineer working in machine learning, experienced in PyTorch, scikit-learn and NLP. She has worked with datasets for classifying Kiswahili text."
+  },
+  "chebet": {
+    "code_switch": "Chebet Jeptoo ni accountant Nakuru. Yeye ni fundi wa QuickBooks, Excel na tax compliance. Pia ako na experience ya auditing kwa SACCOs.",
+    "paraphrase": "Chebet Jeptoo is a Nakuru-based accountant who is proficient in QuickBooks, Excel and tax compliance, with experience in auditing SACCOs."
+  }
+}

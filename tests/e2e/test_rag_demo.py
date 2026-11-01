@@ -142,3 +142,34 @@ def test_http_adapter_against_the_live_server(demo: Path, http_server: int) -> N
         c["relation_id"] == "doc-order-invariance" and c["status"] == "violation"
         for c in report["cases"]
     )
+
+
+CV_EXAMPLE = Path(__file__).parents[2] / "examples" / "cv_skills"
+
+
+@pytest.fixture
+def cv_demo(tmp_path: Path) -> Iterator[Path]:
+    """A private copy of the CV demo. The app's sampling noise depends on how many times it has
+    seen each CV in this process, so each test imports a fresh copy of the module."""
+    target = tmp_path / "cv_skills"
+    shutil.copytree(CV_EXAMPLE, target, ignore=shutil.ignore_patterns(".metamorph", "__pycache__"))
+    sys.modules.pop("cv_app", None)
+    yield target
+    sys.modules.pop("cv_app", None)
+
+
+def test_cv_code_switch_bug_is_caught_without_an_api_key(cv_demo: Path) -> None:
+    code, output = run_cli("run", "--gate", "-c", str(cv_demo / "metamorph.yaml"))
+    assert code == EXIT_GATE_FAILED, output
+    assert "helper model replay" in output and "self-variance baseline (k=3)" in output
+    report = latest_json(cv_demo)
+    code_switch = [c for c in report["cases"] if c["relation_id"] == "code-switch-invariance"]
+    assert code_switch and all(c["status"] == "violation" for c in code_switch)
+    assert report["run"]["llm"]["failures"] == 0
+    assert (next((cv_demo / ".metamorph" / "reports").iterdir()) / "report.html").exists()
+
+
+def test_cv_fixed_extractor_passes(cv_demo: Path, monkeypatch: pytest.MonkeyPatch) -> None:
+    monkeypatch.setenv("CV_FIXED", "1")
+    code, output = run_cli("run", "--gate", "--no-cache", "-c", str(cv_demo / "metamorph.yaml"))
+    assert code == EXIT_PASS, output

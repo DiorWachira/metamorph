@@ -1,6 +1,6 @@
 """Transforms: source input -> follow-up input. Importing this package registers the built-ins."""
 
-from metamorph.transforms import documents, entities, numbers, text
+from metamorph.transforms import documents, entities, llm, numbers, text
 from metamorph.transforms.base import (
     Resources,
     Transform,
@@ -15,6 +15,7 @@ __all__ = [
     "build_transform",
     "documents",
     "entities",
+    "llm",
     "numbers",
     "text",
 ]
