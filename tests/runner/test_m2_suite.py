@@ -7,7 +7,7 @@ from pathlib import Path
 from typing import Any
 
 from fakes import ScriptedLLM, ScriptedTarget, rewrites
-from test_suite import make_config
+from support import make_config
 
 from metamorph.llm.base import LLMError
 from metamorph.suite import RunOptions, open_store, run_suite

@@ -9,7 +9,7 @@ from typing import Any
 import httpx
 import pytest
 from fakes import ScriptedTarget
-from test_suite import make_config
+from support import make_config
 
 from metamorph.adapters.openai_compatible import OpenAICompatibleTarget
 from metamorph.config import OpenAICompatibleTargetConfig

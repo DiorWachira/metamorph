@@ -19,3 +19,6 @@ dist/
 .vscode/
 .idea/
 .qodo/
+
+# UI
+ui/node_modules/

@@ -9,6 +9,8 @@
  *
  * Palette: rag paper and iron-gall ink, plus ONE signal colour, cochineal carmine, a pigment
  * made from insects and reserved for mutations (violations). Status colours are muted inks.
+ * Carmine vs ochre (the two data colours in meters) is validated for colour-vision deficiency
+ * with the dataviz validator in both themes; meters add hatching and direct labels as well.
  *
  * This file is canonical: the HTML report inlines it and the triage UI imports it.
  */
@@ -26,7 +28,7 @@
   --carmine: #a3162b; /* signal: mutation / violation, nothing else */
   --carmine-wash: #f3dcdc;
   --verdigris: #3d6b56; /* pass */
-  --ochre: #8a5d0c; /* excused by baseline, warning mode */
+  --ochre: #b07d12; /* excused by baseline / false alarm: noise mistaken for a mutation */
   --ochre-wash: #f1e4c4;
   --slate: #59626e; /* error, skipped, inconclusive */
 
@@ -55,7 +57,7 @@
     --carmine: #ec5f70;
     --carmine-wash: #3a1a1e;
     --verdigris: #86bca1;
-    --ochre: #dcaa4c;
+    --ochre: #a97a24;
     --ochre-wash: #33291a;
     --slate: #9aa3ae;
     color-scheme: dark;
@@ -74,7 +76,7 @@
   --carmine: #ec5f70;
   --carmine-wash: #3a1a1e;
   --verdigris: #86bca1;
-  --ochre: #dcaa4c;
+  --ochre: #a97a24;
   --ochre-wash: #33291a;
   --slate: #9aa3ae;
   color-scheme: dark;
@@ -181,7 +183,7 @@ pre,
   font: 500 11px var(--font-mono);
   letter-spacing: 0.1em;
   text-transform: uppercase;
-  color: var(--st, var(--ink-2));
+  color: var(--ink-2); /* text stays ink; the dot carries the status colour */
 }
 .status-chip::before {
   content: "";

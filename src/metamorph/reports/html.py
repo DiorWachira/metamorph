@@ -2,7 +2,6 @@
 
 from __future__ import annotations
 
-import json
 from importlib import resources
 from typing import Any
 
@@ -26,22 +25,8 @@ def pin_class(case: CaseView) -> str:
     return "st-excused" if case.excused_by_baseline else f"st-{case.status.value}"
 
 
-def changed_input(case: CaseView) -> tuple[str, str]:
-    """The input text to show in the plate: the first top-level field that changed."""
-    for key, value in case.followup_input.items():
-        if case.source_input.get(key) != value:
-            before, after = case.source_input.get(key), value
-            if isinstance(before, str) and isinstance(after, str):
-                return before, after
-            return (
-                json.dumps(before, indent=2, ensure_ascii=False),
-                json.dumps(after, indent=2, ensure_ascii=False),
-            )
-    return "", ""
-
-
 def plate(case: CaseView) -> dict[str, Any]:
-    before, after = changed_input(case)
+    _, before, after = case.changed_field()
     source_text = case.source_outputs[0].text if case.source_outputs else ""
     out_left, out_right = word_diff(source_text, case.followup_output.text)
     in_left, in_right = word_diff(before, after)

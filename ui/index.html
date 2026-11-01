@@ -1,0 +1,21 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <meta name="description" content="Metamorph: metamorphic testing and CI gating for LLM applications." />
+    <link rel="icon" href="/favicon.svg" type="image/svg+xml" />
+    <title>Metamorph Cabinet</title>
+    <script>
+      // Apply a stored theme before first paint, so dark-mode users never see a flash.
+      try {
+        const theme = localStorage.getItem("mm-theme");
+        if (theme === "light" || theme === "dark") document.documentElement.dataset.theme = theme;
+      } catch {}
+    </script>
+  </head>
+  <body>
+    <div id="root"></div>
+    <script type="module" src="/src/main.tsx"></script>
+  </body>
+</html>

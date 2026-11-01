@@ -153,10 +153,10 @@ footer { margin-top: 64px; border-top: 1px solid var(--rule); padding-top: 12px;
 {% if report.unstable_inputs %}
 <p class="caption">Inputs the target answers inconsistently on its own, before any transform. Their failures say more about sampling noise than about the relation.</p>
 <table class="ledger">
-  <thead><tr><th>Seed</th><th>Relation</th><th>Comparator</th><th class="num">Self-agreement</th><th class="num">Threshold</th></tr></thead>
+  <thead><tr><th>Seed</th><th>Comparator</th><th class="num">Self-agreement</th><th class="num">Threshold</th><th>Relations affected</th></tr></thead>
   <tbody>
   {% for u in report.unstable_inputs %}
-  <tr><td class="mono">{{ u.seed_id }}</td><td>{{ u.relation_id }}</td><td class="mono">{{ u.comparator }}</td><td class="num">{{ "%.2f" | format(u.self_agreement) }}</td><td class="num">{{ "%.2f" | format(u.threshold) }}</td></tr>
+  <tr><td class="mono">{{ u.seed_id }}</td><td class="mono">{{ u.comparator }}</td><td class="num">{{ "%.2f" | format(u.self_agreement) }}</td><td class="num">{{ "%.2f" | format(u.threshold) }}</td><td class="caption">{{ u.relations | join(", ") }}</td></tr>
   {% endfor %}
   </tbody>
 </table>

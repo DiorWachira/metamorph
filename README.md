@@ -17,22 +17,25 @@ What sets it apart:
   model, and gates pull requests with exit codes.
 - **It attacks false alarms.** A self-variance baseline means a follow-up fails only if it
   disagrees with the source more than the app disagrees with itself. On a noisy target it cut
-  false alarms by 81% ([measured below](#the-self-variance-baseline-measured)). Per-relation
-  precision, learned from triage, comes in M3.
+  false alarms by 81% ([measured below](#the-self-variance-baseline-measured)). Then it
+  learns precision per relation from your triage, and only relations that earn it may block
+  CI.
 - **Relations for Kenyan products**: English / Kiswahili / Sheng code-switch invariance and a
   Kiswahili translation round trip, alongside 10 other built-in relations.
 - **Cheap to run.** Target responses and helper-LLM calls are cached on disk, a cost budget
   stops a run gracefully, and recorded LLM calls replay in CI with no API key.
 
-> **Status:** milestones 1 and 2 of 5 are done (core engine; LLM relations, self-variance
-> baseline, budget, HTML report). See the [roadmap](#roadmap).
+> **Status:** milestones 1–3 of 5 are done (core engine; LLM relations and self-variance
+> baseline; triage UI and learned promotion). See the [roadmap](#roadmap).
+
+![The Metamorph cabinet: "Same question, new form. Same answer?" beside Merian's plate VII](docs/images/home.webp)
 
 ## 60-second quickstart
 
 ```bash
 git clone https://github.com/DiorWachira/metamorph && cd metamorph
 python -m venv .venv && source .venv/bin/activate      # Windows: .venv\Scripts\activate
-pip install -e ".[examples]"
+pip install -e ".[examples,server]"
 
 cd examples/rag_kenya
 metamorph run --gate          # exits 1: the planted bug is caught
@@ -68,6 +71,12 @@ right chunk first. Shuffling the same chunks changes the answer, and `doc-order-
 catches the bug without anyone labelling a single answer. Run it again and all 63 calls come
 from the cache at zero cost, with identical verdicts.
 
+Then open the cabinet, the triage UI, on either demo:
+
+```bash
+metamorph triage              # serves http://127.0.0.1:8765 and opens the latest run
+```
+
 To start on your own app:
 
 ```bash
@@ -82,14 +91,20 @@ flowchart LR
     S[seeds.jsonl] --> P
     C[metamorph.yaml] --> P
     subgraph Engine
-        P[Planner<br/>transform each seed<br/>seeded RNG] --> X[Executor<br/>asyncio + retries<br/>concurrency limit]
-        X <--> K[(Response cache<br/>SQLite)]
-        X <--> T[Target adapter<br/>python / http]
+        P[Planner<br/>deterministic + LLM transforms] --> X[Executor<br/>asyncio, retries,<br/>concurrency, budget]
+        P <--> L[Helper LLM service<br/>Anthropic / OpenAI-compatible / replay]
+        X <--> K[(Cache<br/>SQLite: target + LLM)]
+        L <--> K
+        X <--> T[Target adapter<br/>python / http / openai_compatible]
         X --> J[Judge<br/>comparator score vs<br/>self-variance baseline]
+        J <--> L
     end
     T <--> A[Your LLM app]
     J --> DB[(Results DB<br/>SQLite / Postgres)]
-    DB --> R[Reports<br/>JSON / JUnit]
+    DB --> R[Reports<br/>JSON / JUnit / HTML]
+    DB <--> U[Cabinet UI<br/>FastAPI + React]
+    U -->|triage| PR[Per-relation precision<br/>learned modes]
+    PR --> P
     J --> G{Gate}
     G -->|0 pass / 1 fail / 2 error| CI[CI exit code]
 ```
@@ -133,6 +148,20 @@ The naive precision of 54% is close to the ~60% true-positive rate reported for 
 violations (Cho et al., 2025). The baseline is not free: when the app is noisy on an input, a
 real bug that hides inside that noise is excused too, so recall drops from 100% to 84%. The
 report lists those inputs as *unstable specimens*, so you know where your tests are weak.
+
+### Triage and learned trust
+
+A metamorphic test can be wrong: the judge can misread a synonym, or a "harmless" typo can hit a
+name. So Metamorph measures each relation's precision from your own triage:
+
+```
+precision = true defects / (true defects + false alarms)        over every triaged violation
+```
+
+Every relation starts as **WARNING**. Once it has **20 determinations at ≥ 80% precision** it
+is promoted to **BLOCKING**, and below 80% it is demoted again. A `mode:` pinned in
+`metamorph.yaml` always wins over the learned mode. `metamorph relations stats` prints the
+ledger; the UI's *Collection* page shows each relation's progress towards promotion.
 
 ### Exit codes
 
@@ -243,13 +272,49 @@ formatting leaves years, phone numbers and IDs alone. Entity swaps only replace 
 from a Kenyan name bank, apply consistently across the question and the documents, and map
 the names back in the outputs before comparing.
 
+## The cabinet (triage UI)
+
+`metamorph serve` (or `metamorph triage`) starts a local FastAPI server with a React UI built
+into the package, so no Node is needed to run it. It binds to 127.0.0.1 and has no auth, by
+design: a single-user, local tool.
+
+| | |
+|---|---|
+| ![A run in the cabinet: findings, the drawer of relations with one pin per case, specimens with calipers](docs/images/run.webp) | ![A specimen: the Sheng rewrite as a word-diffed plate, the caliper and the determination slip](docs/images/case.webp) |
+| **Accession (run):** findings, the drawer (one tray per relation, one pin per case), each specimen with its caliper, and the unstable inputs. | **Specimen (case):** the answers and inputs as word-diffed plates, the k source samples, the measurement, and the determination slip. Keys: `T` true defect, `F` false alarm, `U` clear, `J`/`K` next/previous. |
+| ![The collection: every relation with a precision meter towards promotion](docs/images/relations.webp) | ![The landing page on a phone, in the dark theme](docs/images/mobile.webp) |
+| **Collection:** each relation's precision meter, showing true defects and false alarms against the 20-review goal, and where its mode came from. | Light ("paper") and dark ("cabinet") themes; works at phone width. A **Lab** page previews any deterministic transform on your own text. |
+
+**Design: the Specimen Cabinet.** The UI and HTML report treat a test suite as a
+natural-history collection, because that is what metamorphic testing resembles: one specimen,
+drawn in different forms, should still be the same species. References:
+
+- **Maria Sibylla Merian, *Metamorphosis insectorum Surinamensium* (1705).** Each plate shows
+  one creature as caterpillar and butterfly together. Plate VII is the hero image, shown as an
+  engraving that becomes hand-coloured on hover.
+- **Herbarium determination slips.** Re-identifications are added on dated slips and never
+  written over the label ([ANBG](https://www.anbg.gov.au/cpbr/herbarium/specimen/about_determination.html)).
+  Triage verdicts are recorded the same way.
+- **Entomology drawers and unit trays.** A run is a drawer, each relation is a tray, and each
+  case is a pin.
+
+The palette is rag paper and iron-gall ink, plus one signal colour: cochineal carmine, an
+insect pigment reserved for mutations (violations). The type is Libre Caslon (display and
+text) with IBM Plex Sans and Mono, all self-hosted. The meter colours (carmine against
+hatched ochre) pass a colour-vision-deficiency validator in both themes. All tokens live in
+`src/metamorph/design/specimen.css`, which the HTML report inlines and the UI imports. The
+plates are public domain, from the Koninklijke Bibliotheek and the Biodiversity Heritage
+Library via Wikimedia Commons.
+
 ## CLI
 
 ```
 metamorph init [DIR]
 metamorph run [--config F] [--relations a,b] [--limit N] [--gate] [--no-cache] [--budget-usd X]
 metamorph report [RUN_ID|latest] [--format json|junit|html] [--out F]
-metamorph relations list
+metamorph serve [--port 8765] [--open]      # the cabinet UI + JSON API (/api/docs)
+metamorph triage                            # serve and open the latest run
+metamorph relations list | stats
 ```
 
 Each run writes `report.json`, `junit.xml` and `report.html` to
@@ -276,6 +341,9 @@ src/metamorph/
   data/          distractor bank, Kenyan entity bank
   llm/           helper-LLM providers (Anthropic SDK, OpenAI-compatible, replay) + service
   design/        specimen.css, the design system shared by the HTML report and the UI
+  server/        FastAPI triage API; static/ holds the built UI
+  promotion.py   precision and learned modes
+ui/                   React + Vite + TypeScript source of the cabinet
 examples/rag_kenya/   demo RAG app with a planted bug (doc order)
 examples/cv_skills/   noisy skill extractor with a planted bug (code-switching) + measure.py
 tests/                unit, Hypothesis property, runner (scripted fake target), end-to-end
@@ -288,6 +356,10 @@ pip install -e ".[dev]"
 pytest -q                 # unit, property, runner and e2e tests, with no network or API keys
 ruff check src tests examples && ruff format --check src tests examples
 mypy
+
+cd ui && npm ci
+npm run dev               # hot-reloading UI on :5173, proxying /api to `metamorph serve`
+npm test && npm run build # builds into src/metamorph/server/static
 ```
 
 ## Roadmap
@@ -297,7 +369,7 @@ mypy
 - [x] **M2** LLM transforms (paraphrase, Kiswahili, Sheng code-switching) and comparators
       (embeddings, LLM entailment judge), the self-variance report section, cost budget,
       record/replay, openai_compatible target, HTML report
-- [ ] **M3** Triage UI, per-relation precision, automatic promotion to BLOCKING
+- [x] **M3** Triage UI (the cabinet), per-relation precision, learned promotion and demotion
 - [ ] **M4** Relation miner, plus a GitHub Action that comments on PRs
 - [ ] **M5** Case study: violations found, false-alarm rate and cost per run
 

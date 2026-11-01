@@ -238,3 +238,72 @@ def _print_summary(report: RunReport) -> None:
         verdict = "[green]PASSED[/]" if gate.passed else "[red]FAILED[/]"
         reasons = f": {escape('; '.join(gate.reasons))}" if gate.reasons else ""
         console.print(f"Gate {verdict}{reasons}")
+
+
+@relations_app.command("stats")
+@exits_on_error
+def relations_stats(config: ConfigOption = Path(DEFAULT_CONFIG_NAME)) -> None:
+    """Show triage precision per relation and the mode it has earned."""
+    from metamorph.promotion import MIN_PRECISION, MIN_REVIEWED
+
+    with open_store(load_config(config)) as store:
+        stats = store.relation_stats()
+    if not stats:
+        console.print("No triaged violations yet. Run `metamorph triage` to review some.")
+        return
+    table = Table("relation", "reviewed", "true bugs", "false alarms", "precision", "learned mode")
+    for s in stats:
+        precision = "n/a" if s.precision is None else f"{s.precision:.0%}"
+        learned = s.learned_mode.value if s.learned_mode else f"(needs {MIN_REVIEWED})"
+        table.add_row(
+            s.relation_id,
+            str(s.reviewed),
+            str(s.true_bugs),
+            str(s.false_alarms),
+            precision,
+            learned,
+        )
+    console.print(table)
+    console.print(
+        f"[dim]A relation blocks CI after {MIN_REVIEWED} reviews at >= {MIN_PRECISION:.0%} "
+        "precision, unless metamorph.yaml pins its mode.[/]"
+    )
+
+
+@app.command()
+@exits_on_error
+def serve(
+    config: ConfigOption = Path(DEFAULT_CONFIG_NAME),
+    host: Annotated[str, typer.Option(help="Interface to bind (local only by default).")] = (
+        "127.0.0.1"
+    ),
+    port: Annotated[int, typer.Option(help="Port to listen on.")] = 8765,
+    open_browser: Annotated[bool, typer.Option("--open/--no-open")] = False,
+    path: Annotated[str, typer.Option(hidden=True)] = "/",
+) -> None:
+    """Start the triage UI and API."""
+    try:
+        import uvicorn
+
+        from metamorph.server.app import create_app
+    except ImportError as exc:
+        raise MetamorphError('the UI needs: pip install "metamorph[server]"') from exc
+
+    url = f"http://{host}:{port}{path}"
+    console.print(f"Metamorph cabinet at [bold]{url}[/]  (Ctrl+C to stop)")
+    if open_browser:
+        import threading
+        import webbrowser
+
+        threading.Timer(1.0, webbrowser.open, args=[url]).start()
+    uvicorn.run(create_app(load_config(config)), host=host, port=port, log_level="warning")
+
+
+@app.command()
+@exits_on_error
+def triage(
+    config: ConfigOption = Path(DEFAULT_CONFIG_NAME),
+    port: Annotated[int, typer.Option(help="Port to listen on.")] = 8765,
+) -> None:
+    """Open the latest run's violations in the triage UI."""
+    serve(config=config, port=port, open_browser=True, path="/runs/latest")

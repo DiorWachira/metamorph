@@ -3,43 +3,17 @@
 from __future__ import annotations
 
 import asyncio
-import json
 import random
 from pathlib import Path
-from typing import Any
 
 import pytest
 from fakes import ScriptedTarget
+from support import SEEDS, make_config
 
 from metamorph.adapters.base import Target, TargetResponse
-from metamorph.config import Config
 from metamorph.errors import RetryableTargetError, TargetError
 from metamorph.suite import RunOptions, run_suite
 from metamorph.types import Input, Status
-
-SEEDS = [
-    {"id": f"s{i}", "input": {"question": f"Which county does question number {i} concern?"}}
-    for i in range(5)
-]
-
-
-def make_config(tmp_path: Path, **overrides: Any) -> Config:
-    tmp_path.mkdir(parents=True, exist_ok=True)
-    (tmp_path / "seeds.jsonl").write_text(
-        "\n".join(json.dumps(s) for s in overrides.pop("seeds", SEEDS)), encoding="utf-8"
-    )
-    raw: dict[str, Any] = {
-        "target": {"type": "python", "callable": "unused:fn"},
-        "seeds": "seeds.jsonl",
-        "fields": {"text": "question"},
-        "relations": [{"id": "typo-robustness", "mode": "blocking"}],
-        "run": {"backoff_s": 0},
-        **overrides,
-    }
-    cfg = Config.model_validate(raw)
-    cfg.base_dir = tmp_path
-    cfg.snapshot = raw
-    return cfg
 
 
 def constant(answer: str = "Nairobi county"):  # type: ignore[no-untyped-def]

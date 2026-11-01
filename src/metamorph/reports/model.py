@@ -2,6 +2,7 @@
 
 from __future__ import annotations
 
+import json
 from datetime import datetime
 from typing import Any, Literal
 
@@ -10,6 +11,10 @@ from pydantic import BaseModel, computed_field
 from metamorph.types import Mode, Status
 
 Triage = Literal["unreviewed", "true_bug", "false_alarm"]
+
+
+def _pretty(value: Any) -> str:
+    return json.dumps(value, indent=2, ensure_ascii=False)
 
 
 class OutputView(BaseModel):
@@ -41,6 +46,16 @@ class CaseView(BaseModel):
     followup_output: OutputView
     triage: Triage
     note: str | None = None
+
+    def changed_field(self) -> tuple[str | None, str, str]:
+        """The first input field the transform changed, as (name, before, after) text."""
+        for key, after in self.followup_input.items():
+            before = self.source_input.get(key)
+            if before != after:
+                if isinstance(before, str) and isinstance(after, str):
+                    return key, before, after
+                return key, _pretty(before), _pretty(after)
+        return None, "", ""
 
     @computed_field  # type: ignore[prop-decorator]
     @property
@@ -91,10 +106,10 @@ class UnstableInput(BaseModel):
     """A seed the target answers inconsistently on its own, before any transform."""
 
     seed_id: str
-    relation_id: str
     comparator: str
     self_agreement: float
     threshold: float
+    relations: list[str]  # the relations whose verdicts this noise affected
 
 
 class RunView(BaseModel):
@@ -124,22 +139,31 @@ class RunReport(BaseModel):
     @computed_field  # type: ignore[prop-decorator]
     @property
     def unstable_inputs(self) -> list[UnstableInput]:
-        """Seeds whose own samples disagree below the comparator threshold (lowest first)."""
-        by_relation = {r.id: r for r in self.relations}
+        """Seeds whose own samples agree below the comparator threshold, lowest first.
+
+        One entry per (seed, comparator): relations sharing a comparator share the measurement.
+        """
+        comparators = {r.id: r.comparator for r in self.relations}
         found: dict[tuple[str, str], UnstableInput] = {}
         for c in self.cases:
             if c.self_variance is None or c.nominal_threshold is None:
                 continue
-            if c.self_variance < c.nominal_threshold:
-                found[(c.seed_id, c.relation_id)] = UnstableInput(
+            if c.self_variance >= c.nominal_threshold:
+                continue
+            comparator = comparators.get(c.relation_id, "")
+            entry = found.setdefault(
+                (c.seed_id, comparator),
+                UnstableInput(
                     seed_id=c.seed_id,
-                    relation_id=c.relation_id,
-                    comparator=by_relation[c.relation_id].comparator
-                    if c.relation_id in by_relation
-                    else "",
+                    comparator=comparator,
                     self_agreement=c.self_variance,
                     threshold=c.nominal_threshold,
-                )
+                    relations=[],
+                ),
+            )
+            entry.self_agreement = min(entry.self_agreement, c.self_variance)
+            if c.relation_id not in entry.relations:
+                entry.relations.append(c.relation_id)
         return sorted(found.values(), key=lambda u: u.self_agreement)
 
     @computed_field  # type: ignore[prop-decorator]

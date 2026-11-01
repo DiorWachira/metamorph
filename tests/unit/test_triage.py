@@ -4,7 +4,7 @@ from pathlib import Path
 
 import pytest
 from fakes import ScriptedTarget
-from test_suite import SEEDS, make_config
+from support import SEEDS, make_config
 
 from metamorph.errors import MetamorphError
 from metamorph.promotion import MIN_REVIEWED, learned_mode, precision
