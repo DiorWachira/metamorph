@@ -378,8 +378,17 @@ drawn in different forms, should still be the same species. References:
 - **Entomology drawers and unit trays.** A run is a drawer, each relation is a tray, and each
   case is a pin.
 
+**The cabinet is hand-coloured as you use it.** Merian's plates were printed as engravings and
+coloured by hand afterwards, and the UI works the same way. At rest it is ink on paper. When
+you move, scroll or type, her pigments (Morpho blue, leaf green and ochre) seep into the
+headings, rules, trays and buttons, and a soft lamp follows the cursor. Hovering a plate makes
+colour bloom outward from the cursor until the whole plate is coloured. After a moment of
+stillness everything drains back to the engraving. Reduced-motion users get the colour with no
+movement, and a tap colours a plate on touch screens.
+
 The palette is rag paper and iron-gall ink, plus one signal colour: cochineal carmine, an
-insect pigment reserved for mutations (violations). The type is Libre Caslon (display and
+insect pigment reserved for mutations (violations). The hand-colouring pigments are decoration
+that responds to you; they never carry a status. The type is Libre Caslon (display and
 text) with IBM Plex Sans and Mono, all self-hosted. The meter colours (carmine against
 hatched ochre) pass a colour-vision-deficiency validator in both themes. All tokens live in
 `src/metamorph/design/specimen.css`, which the HTML report inlines and the UI imports. The

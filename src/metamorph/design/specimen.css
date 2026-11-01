@@ -12,6 +12,12 @@
  * Carmine vs ochre (the two data colours in meters) is validated for colour-vision deficiency
  * with the dataviz validator in both themes; meters add hatching and direct labels as well.
  *
+ * Hand-colouring: Merian's plates were printed as engravings and coloured by hand afterwards.
+ * The UI does the same. At rest it is ink on paper; while the visitor moves, scrolls or types,
+ * the pigments below seep in (see `[data-alive]` in the UI's app.css) and drain away again
+ * when they go idle. Pigments are decoration that answers the visitor, never a status:
+ * carmine keeps its single meaning. All pigments meet 4.5:1 text contrast on every surface.
+ *
  * This file is canonical: the HTML report inlines it and the triage UI imports it.
  */
 
@@ -31,6 +37,10 @@
   --ochre: #b07d12; /* excused by baseline / false alarm: noise mistaken for a mutation */
   --ochre-wash: #f1e4c4;
   --slate: #59626e; /* error, skipped, inconclusive */
+
+  --pigment-morpho: #2c5d92; /* the blue Morpho of plate VII */
+  --pigment-leaf: #47722f; /* the cherry leaves */
+  --pigment-ochre: var(--ochre);
 
   --font-display: "Libre Caslon Display", "Libre Caslon Text", Georgia, serif;
   --font-serif: "Libre Caslon Text", Georgia, "Times New Roman", serif;
@@ -60,6 +70,8 @@
     --ochre: #a97a24;
     --ochre-wash: #33291a;
     --slate: #9aa3ae;
+    --pigment-morpho: #7fb0e6;
+    --pigment-leaf: #9cc77c;
     color-scheme: dark;
   }
 }
@@ -79,6 +91,8 @@
   --ochre: #a97a24;
   --ochre-wash: #33291a;
   --slate: #9aa3ae;
+  --pigment-morpho: #7fb0e6;
+  --pigment-leaf: #9cc77c;
   color-scheme: dark;
 }
 

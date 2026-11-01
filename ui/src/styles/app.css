@@ -347,7 +347,7 @@ kbd {
   position: relative;
   box-shadow: 6px 6px 0 var(--ink);
 }
-.mount img {
+.mount > img {
   display: block;
   width: 100%;
   height: auto;
@@ -360,15 +360,6 @@ kbd {
 }
 .hero-plate {
   margin: 0;
-}
-.hero-plate .mount img {
-  /* The engraving: Merian's plates were printed in ink and coloured by hand afterwards. */
-  filter: grayscale(1) sepia(0.28) contrast(1.08) brightness(1.02);
-  transition: filter 1.4s ease;
-}
-.hero-plate:hover .mount img,
-.hero-plate.is-coloured .mount img {
-  filter: none;
 }
 .hero-plate figcaption {
   margin-top: 16px;
@@ -391,13 +382,10 @@ kbd {
   flex-direction: column;
   gap: 12px;
 }
-.reading-step img {
-  width: 100%;
+.reading-step .colour-plate {
   height: 200px;
-  object-fit: cover;
   background: #f4eedf;
   border: 1px solid var(--rule);
-  filter: grayscale(1) sepia(0.25) contrast(1.05);
 }
 .reading-step p {
   font: 15px/1.5 var(--font-serif);
@@ -815,9 +803,7 @@ kbd {
 .not-found .stamp {
   margin-top: 18px;
 }
-.not-found-plate img {
-  filter: grayscale(1) sepia(0.28) contrast(1.06);
-}
+
 
 /* ---- Responsive ---------------------------------------------------------------------------- */
 
@@ -834,7 +820,7 @@ kbd {
   .reading {
     grid-template-columns: minmax(0, 1fr);
   }
-  .reading-step img {
+  .reading-step .colour-plate {
     height: 160px;
   }
   .specimen-row {
@@ -890,4 +876,194 @@ kbd {
     text-align: left;
     flex-basis: 100%;
   }
+}
+
+/* ---- The hand-coloured cabinet ---------------------------------------------------------------
+ * At rest: ink on paper. While the visitor moves, scrolls or types, <html data-alive> is set and
+ * Merian's pigments seep in; they drain away after a moment of stillness. Colours arrive quickly
+ * (0.5s) and leave slowly (1.4s), like ink drying. Carmine is untouched: it still means mutation.
+ */
+
+@property --loupe {
+  syntax: "<length>";
+  inherits: false;
+  initial-value: 0px;
+}
+
+/* The engraved plate the visitor colours. */
+.colour-plate {
+  position: relative;
+  overflow: hidden;
+  --loupe: 0px;
+  transition: --loupe 1.4s cubic-bezier(0.4, 0, 0.6, 1);
+}
+.colour-plate img {
+  display: block;
+  width: 100%;
+  height: auto;
+}
+.colour-plate.is-cover img {
+  height: 100%;
+  object-fit: cover;
+}
+.colour-plate .engraving {
+  filter: grayscale(1) sepia(0.28) contrast(1.08) brightness(1.02);
+  transition: filter 1.4s ease;
+}
+.colour-plate .pigment {
+  position: absolute;
+  inset: 0;
+  height: 100%;
+  object-fit: cover;
+  pointer-events: none;
+  /* Colour shows only inside a soft-edged circle that grows from the cursor. */
+  -webkit-mask-image: radial-gradient(circle var(--loupe) at var(--px, 50%) var(--py, 50%), #000 55%, transparent 100%);
+  mask-image: radial-gradient(circle var(--loupe) at var(--px, 50%) var(--py, 50%), #000 55%, transparent 100%);
+}
+/* Activity anywhere warms the engraving a little... */
+:root[data-alive] .colour-plate .engraving {
+  filter: grayscale(0.6) sepia(0.22) contrast(1.05) saturate(1.15);
+  transition-duration: 0.6s;
+}
+/* ...hovering it lets the colour bloom outward from the cursor until it fills the plate. */
+:root[data-alive="true"] .colour-plate:hover {
+  --loupe: 1600px;
+  transition: --loupe 2.8s cubic-bezier(0.25, 0.1, 0.3, 1);
+}
+.colour-plate.is-coloured,
+:root[data-alive="still"] .colour-plate {
+  --loupe: 4000px;
+}
+.colour-plate.is-coloured .engraving {
+  filter: none;
+}
+
+/* The reading lamp: a pool of Morpho blue under the mouse. */
+.lamp {
+  position: fixed;
+  inset: 0;
+  z-index: 4;
+  pointer-events: none;
+  opacity: 0;
+  transition: opacity 1.4s ease;
+  background: radial-gradient(
+    circle 300px at var(--mx, 50%) var(--my, 50%),
+    color-mix(in srgb, var(--pigment-morpho) 13%, transparent),
+    transparent 72%
+  );
+  mix-blend-mode: multiply;
+}
+:root[data-alive="true"] .lamp {
+  opacity: 1;
+  transition-duration: 0.5s;
+}
+@media (prefers-color-scheme: dark) {
+  :root:not([data-theme="light"]) .lamp {
+    mix-blend-mode: screen;
+  }
+}
+:root[data-theme="dark"] .lamp {
+  mix-blend-mode: screen;
+}
+@media (hover: none) {
+  .lamp {
+    display: none;
+  }
+}
+
+/* Everything that can be coloured fades between ink and pigment. */
+.wordmark-mark i,
+.section-head,
+.section-no,
+.hero h1 em,
+.figure-n,
+.tray,
+.pin,
+.btn,
+.nav a,
+.mount,
+.reading-step,
+.specimen-row,
+.entry,
+.ledger tbody tr,
+.proposal,
+.det-slip,
+.requirement {
+  transition:
+    color 1.4s ease,
+    background-color 1.4s ease,
+    border-color 1.4s ease,
+    box-shadow 0.5s ease,
+    transform 80ms ease;
+}
+
+:root[data-alive] .wordmark-mark i:first-child {
+  background: var(--pigment-morpho);
+}
+:root[data-alive] .wordmark-mark i + i {
+  transform: scale(1.15);
+}
+:root[data-alive] .hero h1 em,
+:root[data-alive] .not-found h1 em {
+  color: var(--pigment-morpho);
+}
+:root[data-alive] .section-no {
+  color: var(--pigment-morpho);
+}
+/* The section rule is hand-coloured in the three pigments. */
+:root[data-alive] .section-head {
+  border-top-color: transparent;
+  border-image: linear-gradient(90deg, var(--pigment-morpho), var(--pigment-leaf) 55%, var(--pigment-ochre)) 1;
+}
+:root[data-alive] .figure:not(.carmine):not(.ochre) .figure-n {
+  color: var(--pigment-morpho);
+}
+:root[data-alive] .label {
+  transition: color 1.4s ease;
+}
+:root[data-alive] .nav a:hover,
+:root[data-alive] .nav a.active {
+  border-color: var(--pigment-morpho);
+  color: var(--pigment-morpho);
+}
+
+/* Intact pins take the leaf's green while you browse; mutations stay carmine. */
+:root[data-alive] .pin.st-pass {
+  background: var(--pigment-leaf);
+  border-color: var(--pigment-leaf);
+}
+
+/* Hovered surfaces light up with a pigment wash and a coloured offset shadow. */
+:root[data-alive] .tray:hover,
+:root[data-alive] .reading-step:hover,
+:root[data-alive] .proposal:hover {
+  background: color-mix(in srgb, var(--pigment-leaf) 9%, var(--paper-3));
+  border-color: var(--pigment-leaf);
+  box-shadow: 4px 4px 0 var(--pigment-leaf);
+}
+:root[data-alive] .specimen-row:hover,
+:root[data-alive] .entry:hover,
+:root[data-alive] .ledger tbody tr:hover {
+  background: color-mix(in srgb, var(--pigment-morpho) 7%, transparent);
+}
+:root[data-alive] .specimen-row:hover {
+  box-shadow: inset 4px 0 0 var(--pigment-morpho);
+}
+:root[data-alive] .btn:hover {
+  box-shadow: 3px 3px 0 var(--pigment-morpho);
+  border-color: var(--pigment-morpho);
+}
+:root[data-alive] .btn.primary:hover,
+:root[data-alive] .btn[aria-pressed="true"]:hover {
+  background: var(--pigment-morpho);
+  color: var(--paper-3);
+}
+:root[data-alive] .mount {
+  box-shadow: 6px 6px 0 var(--pigment-morpho);
+}
+:root[data-alive] .requirement {
+  border-left-color: var(--pigment-leaf);
+}
+:root[data-alive] .det-slip:hover {
+  border-left-color: var(--pigment-morpho);
 }

@@ -2,6 +2,7 @@ import { useEffect } from "react";
 import { NavLink, Outlet } from "react-router-dom";
 
 import { useStored } from "../hooks";
+import { Lamp, useAliveCabinet } from "./Alive";
 
 type Theme = "system" | "light" | "dark";
 const NEXT: Record<Theme, Theme> = { system: "light", light: "dark", dark: "system" };
@@ -26,8 +27,10 @@ function ThemeToggle() {
 }
 
 export function Layout() {
+  useAliveCabinet();
   return (
     <div className="shell">
+      <Lamp />
       <a className="skip" href="#main">
         Skip to content
       </a>

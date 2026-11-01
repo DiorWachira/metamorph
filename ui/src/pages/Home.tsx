@@ -2,6 +2,7 @@ import { useState } from "react";
 import { Link } from "react-router-dom";
 
 import { api } from "../api";
+import { ColourPlate } from "../components/Alive";
 import { Caliper } from "../components/Caliper";
 import { Drawer, PinLegend } from "../components/Drawer";
 import { DiffText, Plate } from "../components/Plate";
@@ -18,18 +19,20 @@ const FOLLOWUP_CV = "Yeye ni moto kwa Python, SQL na Power BI.";
 function HeroPlate() {
   const [coloured, setColoured] = useState(false);
   return (
-    <figure className={`hero-plate ${coloured ? "is-coloured" : ""}`}>
+    <figure className="hero-plate">
       <div className="mount">
-        <img
+        <ColourPlate
           src="/plates/plate-vii.webp"
           width={1060}
           height={1410}
+          coloured={coloured}
           alt="Merian's plate VII: a spiny caterpillar on a cherry branch and the blue Morpho butterfly it becomes."
         />
         <span className="mount-no label">Pl. VII</span>
       </div>
       <figcaption className="caption">
-        <b className="label">Fig. 1</b> One species, two forms. Maria Sibylla Merian,{" "}
+        <b className="label">Fig. 1</b> One species, two forms. Move over the engraving to hand-colour it,
+        as Merian's colourists did. Maria Sibylla Merian,{" "}
         <i>Metamorphosis insectorum Surinamensium</i>, pl. VII (1705). Koninklijke Bibliotheek, via
         Wikimedia Commons; public domain.{" "}
         <button className="link-button" onClick={() => setColoured((c) => !c)} aria-pressed={coloured}>
@@ -46,7 +49,13 @@ function HowARelationReads() {
       <SectionHead no="§1" title="How a relation is read" />
       <div className="reading">
         <figure className="reading-step">
-          <img src="/plates/plate-vii-larva.webp" width={345} height={350} alt="The caterpillar, detail of plate VII." />
+          <ColourPlate
+            cover
+            src="/plates/plate-vii-larva.webp"
+            width={345}
+            height={350}
+            alt="The caterpillar, detail of plate VII."
+          />
           <figcaption>
             <span className="label">I · The specimen</span>
             <p>
@@ -55,7 +64,13 @@ function HowARelationReads() {
           </figcaption>
         </figure>
         <figure className="reading-step">
-          <img src="/plates/plate-vii-imago.webp" width={660} height={630} alt="The blue Morpho butterfly, detail of plate VII." />
+          <ColourPlate
+            cover
+            src="/plates/plate-vii-imago.webp"
+            width={660}
+            height={630}
+            alt="The blue Morpho butterfly, detail of plate VII."
+          />
           <figcaption>
             <span className="label">II · The metamorphosis</span>
             <p>
