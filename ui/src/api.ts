@@ -135,7 +135,24 @@ export interface RelationEntry {
   mode: Mode;
   mode_source: string;
   llm: boolean;
+  requirement: string | null;
   stats: RelationStats | null;
+}
+
+export interface Proposal {
+  spec: {
+    id: string;
+    description: string;
+    requirement: string | null;
+    expected: "invariant" | "flips";
+    transform: { name: string; params: Record<string, unknown> };
+    comparator: { name: string; threshold: number | null; params: Record<string, unknown> };
+  };
+  rationale: string;
+  status: "proposed" | "approved" | "rejected";
+  source: string;
+  model: string;
+  mined_at: string;
 }
 
 export interface RelationsResponse {
@@ -200,6 +217,9 @@ export const api = {
       method: "POST",
       body: JSON.stringify({ verdict, note }),
     }),
+  proposals: () => request<Proposal[]>("/api/proposals"),
+  decide: (id: string, decision: "approve" | "reject") =>
+    request<Proposal[]>(`/api/proposals/${encodeURIComponent(id)}/${decision}`, { method: "POST" }),
   lab: (body: {
     transform: string;
     params: Record<string, unknown>;

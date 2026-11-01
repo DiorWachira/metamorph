@@ -86,6 +86,11 @@ class Transform(ABC):
 _REGISTRY: dict[str, type[Transform]] = {}
 
 
+def registry() -> dict[str, type[Transform]]:
+    """Every registered transform by name (a copy)."""
+    return dict(_REGISTRY)
+
+
 def register[T: type[Transform]](cls: T) -> T:
     _REGISTRY[cls.name] = cls
     return cls

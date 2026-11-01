@@ -79,6 +79,8 @@ class LLMRewrite(Transform):
 
 @register
 class Paraphrase(LLMRewrite):
+    """Same meaning, different wording and sentence structure."""
+
     name = "paraphrase"
 
     def steps(self) -> list[str]:
@@ -151,6 +153,8 @@ FORMALITY = {
 
 @register
 class Formality(LLMRewrite):
+    """A much more polite (or much more casual) phrasing of the same request."""
+
     name = "formality"
 
     def __init__(self, direction: Literal["polite", "informal"] = "polite") -> None:
@@ -190,3 +194,20 @@ class RephraseRequest(LLMRewrite):
             "information being asked for. Do not make it more or less harmful and do not add "
             "persuasion or role-play instructions."
         ]
+
+
+@register
+class Rewrite(LLMRewrite):
+    """An app-specific rewrite described in plain words (what mined relations use), e.g.
+    "move the years of experience to the end of the CV"."""
+
+    name = "rewrite"
+
+    def __init__(self, instruction: str) -> None:
+        super().__init__()
+        if not instruction.strip():
+            raise ValueError("instruction must not be empty")
+        self.instruction = instruction.strip()
+
+    def steps(self) -> list[str]:
+        return [self.instruction]

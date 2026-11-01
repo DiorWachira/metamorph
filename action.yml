@@ -1,0 +1,127 @@
+name: Metamorph gate
+description: >-
+  Metamorphic testing for an LLM application: run the relations, gate the pull request on blocking
+  violations, and post a summary comment. No labelled answers needed.
+author: Dior Wachira
+branding:
+  icon: shield
+  color: red
+
+inputs:
+  config:
+    description: Path to metamorph.yaml, relative to working-directory.
+    default: metamorph.yaml
+  working-directory:
+    description: Directory to run in.
+    default: .
+  fail-on-gate:
+    description: Fail the job when blocking violations exceed the gate (exit code 1).
+    default: "true"
+  budget-usd:
+    description: Stop starting paid calls beyond this spend (empty = no limit).
+    default: ""
+  extras:
+    description: Extra pip extras to install, comma-separated (e.g. "llm,embeddings").
+    default: ""
+  comment:
+    description: Post or update one summary comment on the pull request.
+    default: "true"
+  python-version:
+    description: Python version to run Metamorph with.
+    default: "3.12"
+  github-token:
+    description: Token used to comment (needs pull-requests write).
+    default: ${{ github.token }}
+
+outputs:
+  exit-code:
+    description: "Metamorph's exit code: 0 pass, 1 gate failed, 2 config or runtime error."
+    value: ${{ steps.run.outputs.exit-code }}
+  report-dir:
+    description: Directory holding report.json, junit.xml, report.html and summary.md.
+    value: ${{ steps.run.outputs.report-dir }}
+
+runs:
+  using: composite
+  steps:
+    - uses: actions/setup-python@v7
+      with:
+        python-version: ${{ inputs.python-version }}
+
+    - name: Install Metamorph
+      shell: bash
+      env:
+        EXTRAS: ${{ inputs.extras }}
+      run: |
+        spec="${{ github.action_path }}"
+        if [ -n "$EXTRAS" ]; then spec="${spec}[${EXTRAS}]"; fi
+        python -m pip install --quiet "$spec"
+
+    - name: Restore the response cache
+      # Helper-LLM follow-ups and judgements carry over between runs: re-runs stay cheap.
+      uses: actions/cache@v6
+      with:
+        path: ${{ inputs.working-directory }}/.metamorph/cache.sqlite
+        key: metamorph-${{ runner.os }}-${{ inputs.working-directory }}-${{ github.sha }}
+        restore-keys: metamorph-${{ runner.os }}-${{ inputs.working-directory }}-
+
+    - name: Run the relations
+      id: run
+      shell: bash
+      working-directory: ${{ inputs.working-directory }}
+      env:
+        CONFIG: ${{ inputs.config }}
+        BUDGET: ${{ inputs.budget-usd }}
+      run: |
+        args=(run --gate --config "$CONFIG")
+        if [ -n "$BUDGET" ]; then args+=(--budget-usd "$BUDGET"); fi
+        set +e
+        metamorph "${args[@]}"
+        code=$?
+        set -e
+        echo "exit-code=$code" >> "$GITHUB_OUTPUT"
+        latest=$(ls -td .metamorph/reports/*/ 2>/dev/null | head -1)
+        echo "report-dir=${latest%/}" >> "$GITHUB_OUTPUT"
+        if [ -n "$latest" ]; then cat "${latest}summary.md" >> "$GITHUB_STEP_SUMMARY"; fi
+
+    - name: Upload the reports
+      if: always() && steps.run.outputs.report-dir != ''
+      uses: actions/upload-artifact@v7
+      with:
+        name: metamorph-report
+        path: ${{ inputs.working-directory }}/${{ steps.run.outputs.report-dir }}
+
+    - name: Comment on the pull request
+      if: inputs.comment == 'true' && github.event_name == 'pull_request' && steps.run.outputs.report-dir != ''
+      continue-on-error: true  # fork PRs get a read-only token; the job summary still has it all
+      shell: bash
+      working-directory: ${{ inputs.working-directory }}
+      env:
+        GH_TOKEN: ${{ inputs.github-token }}
+        SUMMARY: ${{ steps.run.outputs.report-dir }}/summary.md
+        REPO: ${{ github.repository }}
+        PR: ${{ github.event.pull_request.number }}
+        RUN_URL: ${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }}
+      run: |
+        printf '%s\n\n[Full HTML report (artifact)](%s)\n' "$(cat "$SUMMARY")" "$RUN_URL" > comment.md
+        existing=$(gh api "repos/$REPO/issues/$PR/comments" --paginate \
+          --jq '.[] | select(.body | startswith("<!-- metamorph-report -->")) | .id' | head -1)
+        if [ -n "$existing" ]; then
+          gh api -X PATCH "repos/$REPO/issues/comments/$existing" -F body=@comment.md > /dev/null
+          echo "updated comment $existing"
+        else
+          gh api -X POST "repos/$REPO/issues/$PR/comments" -F body=@comment.md > /dev/null
+          echo "posted a new comment"
+        fi
+
+    - name: Apply the gate
+      shell: bash
+      env:
+        CODE: ${{ steps.run.outputs.exit-code }}
+        FAIL_ON_GATE: ${{ inputs.fail-on-gate }}
+      run: |
+        if [ "$CODE" = "2" ]; then echo "::error::Metamorph could not run (exit 2)"; exit 2; fi
+        if [ "$CODE" = "1" ] && [ "$FAIL_ON_GATE" = "true" ]; then
+          echo "::error::Blocking metamorphic violations exceed the gate"; exit 1
+        fi
+        echo "gate exit code: $CODE"

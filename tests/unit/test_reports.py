@@ -103,3 +103,33 @@ async def test_openai_compatible_target_errors(tmp_path: Path) -> None:
             target_config(tmp_path).model_copy(update={"system_prompt_file": Path("nope.txt")}),
             tmp_path,
         )
+
+
+async def test_markdown_summary_for_pull_requests(tmp_path: Path) -> None:
+    from metamorph.reports.markdown import MARKER, render_markdown
+
+    originals = {"Which county | pipe?"}
+    seeds = [{"id": "x", "input": {"question": "Which county | pipe?"}}]
+    cfg = make_config(tmp_path, seeds=seeds)
+    report = await run_suite(
+        cfg,
+        target=ScriptedTarget(lambda p, n: "A | B" if p["question"] in originals else "C"),
+    )
+    md = render_markdown(report)
+    assert md.startswith(MARKER)
+    assert "🔴 **Gate failed**" in md
+    assert "| `typo-robustness` | **blocking** | 1 | 1 | 0 |" in md
+    assert "A \| B" in md  # pipes in answers cannot break the table
+
+
+def test_action_definition() -> None:
+    import yaml
+
+    root = Path(__file__).parents[2]
+    action = yaml.safe_load((root / "action.yml").read_text(encoding="utf-8"))
+    assert action["runs"]["using"] == "composite"
+    steps = {s.get("name", s.get("uses")): s for s in action["runs"]["steps"]}
+    assert steps["Comment on the pull request"]["continue-on-error"] is True
+    assert "fail-on-gate" in action["inputs"] and "exit-code" in action["outputs"]
+    names = list(steps)
+    assert names.index("Apply the gate") == len(names) - 1  # gate last: reports always posted

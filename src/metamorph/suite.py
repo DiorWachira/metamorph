@@ -9,6 +9,7 @@ from datetime import datetime
 from typing import Any
 
 from metamorph.adapters import Target, build_target
+from metamorph.collection import load_learned
 from metamorph.config import Config
 from metamorph.gate import evaluate_gate
 from metamorph.gitinfo import git_info
@@ -23,6 +24,7 @@ from metamorph.seeds import load_seeds
 from metamorph.services import Services
 from metamorph.storage import Store, sqlite_url
 from metamorph.transforms import Resources
+from metamorph.types import Mode
 
 
 @dataclass(frozen=True)
@@ -39,6 +41,11 @@ def new_run_id() -> str:
 
 def open_store(config: Config) -> Store:
     return Store(sqlite_url(config.resolve(config.storage_dir)))
+
+
+def learned_modes(config: Config, store: Store) -> dict[str, Mode]:
+    """Modes earned through triage: the committed file (what CI sees) over the local store."""
+    return {**store.learned_modes(), **load_learned(config.resolve(config.learned_modes))}
 
 
 def relation_summary(relation: Relation) -> dict[str, Any]:
@@ -96,7 +103,7 @@ async def _run(
     on_total_calls: Callable[[int], None] | None,
     on_call_done: Callable[[], None] | None,
 ) -> RunReport:
-    relations = resolve_relations(config, options.relations, store.learned_modes())
+    relations = resolve_relations(config, options.relations, learned_modes(config, store))
     seeds = load_seeds(config.resolve(config.seeds), options.limit)
     res = config.resources
     resources = Resources.load(

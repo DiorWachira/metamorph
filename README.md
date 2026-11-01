@@ -22,11 +22,15 @@ What sets it apart:
   CI.
 - **Relations for Kenyan products**: English / Kiswahili / Sheng code-switch invariance and a
   Kiswahili translation round trip, alongside 10 other built-in relations.
+- **It writes app-specific tests from your requirements.** The relation miner turns a SPEC or
+  system prompt into executable relations, each quoting the requirement it came from, for
+  you to approve.
 - **Cheap to run.** Target responses and helper-LLM calls are cached on disk, a cost budget
   stops a run gracefully, and recorded LLM calls replay in CI with no API key.
 
-> **Status:** milestones 1–3 of 5 are done (core engine; LLM relations and self-variance
-> baseline; triage UI and learned promotion). See the [roadmap](#roadmap).
+> **Status:** milestones 1–4 of 5 are done (core engine; LLM relations and self-variance
+> baseline; triage UI and learned promotion; relation miner and GitHub Action). See the
+> [roadmap](#roadmap).
 
 ![The Metamorph cabinet: "Same question, new form. Same answer?" beside Merian's plate VII](docs/images/home.webp)
 
@@ -272,6 +276,82 @@ formatting leaves years, phone numbers and IDs alone. Entity swaps only replace 
 from a Kenyan name bank, apply consistently across the question and the documents, and map
 the names back in the outputs before comparing.
 
+## The relation miner
+
+The 12 built-in relations are generic. The bugs that matter are usually specific to your app,
+and they are described in your requirements. `metamorph mine` turns those requirements into
+relations, following Shin et al.'s approach of deriving executable metamorphic relations from
+requirements with an LLM ([QUATIC 2024, arXiv:2401.17019](https://arxiv.org/abs/2401.17019)):
+
+1. The helper model finds the sentences that constrain inputs and outputs, then turns each
+   into a relation. Every proposal quotes its requirement.
+2. Proposals must use Metamorph's own vocabulary. The output schema enumerates the registered
+   transforms and comparators, so every proposal is executable by construction. App-specific
+   changes use the `rewrite(instruction)` transform.
+3. Each proposal is validated by actually building it. One with a misspelt parameter or a
+   clashing id is dropped, and the reason is shown.
+4. Nothing runs until a human approves. Approved relations go to `relations/custom.yaml`,
+   which you commit, and they are enabled automatically.
+
+```bash
+cd examples/cv_skills
+metamorph mine SPEC.md --hint "Extracts skills from CVs for a Kenyan job-matching service."
+#  5 proposals written to relations/proposed.yaml
+#  dropped years-are-not-skills: bad params for comparator 'numeric_within': ... 'tolerance'
+metamorph relations proposals          # or review them on the cabinet's Collection page
+metamorph relations approve location-swap-invariance
+metamorph run                          # the approved relation now runs with the rest
+```
+
+From the CV demo's `SPEC.md`, the miner proposes the following:
+- **location swap:** moving the candidate to another town must not change their skills;
+- **sentence order:** reversing the order of the sentences must not change the skills;
+- **gender swap:** changing the candidate's pronouns must not change the skills;
+- **skill removal:** deleting a skill must change the output, an expected **flip**;
+- **Kiswahili CV:** the same CV written in Kiswahili must yield the same skills.
+
+All five are app-specific tests that no generic catalogue contains. (The demo's mining
+response is authored and replayed, like its other LLM calls; with `llm.provider: anthropic` it
+is generated live.)
+
+**Learned trust travels with the repo.** Each triage verdict also updates
+`relations/learned.yaml`. Commit it, and CI, which starts with an empty database, applies the
+modes your relations have earned. `metamorph relations stats --export` writes the same file
+from the command line.
+
+## The GitHub Action
+
+```yaml
+# .github/workflows/metamorph.yml
+on: pull_request
+permissions: {contents: read, pull-requests: write}
+jobs:
+  metamorph:
+    runs-on: ubuntu-24.04
+    steps:
+      - uses: actions/checkout@v7
+      - uses: DiorWachira/metamorph@main
+        with:
+          config: metamorph.yaml
+          extras: llm               # if your relations use a helper model
+          budget-usd: "2.00"
+        env:
+          ANTHROPIC_API_KEY: ${{ secrets.ANTHROPIC_API_KEY }}
+```
+
+On every pull request the action:
+1. Restores the response cache, so helper-LLM follow-ups and judgements are paid for once.
+2. Runs the relations with `--gate`.
+3. Writes a Markdown summary to the job page and uploads the JSON, JUnit and HTML reports.
+4. Posts **one** PR comment and updates it in place on later pushes, so the thread isn't
+   spammed. The comment carries the verdict, a row per relation and the first violations
+   with both answers.
+5. Applies the gate last, so the reports are always published even when it fails.
+
+Exit code 2 (config or target failure) always fails the job. `fail-on-gate: "false"` reports
+violations without blocking. This repository dogfoods the action on the CV demo in
+[`.github/workflows/metamorph.yml`](.github/workflows/metamorph.yml).
+
 ## The cabinet (triage UI)
 
 `metamorph serve` (or `metamorph triage`) starts a local FastAPI server with a React UI built
@@ -311,10 +391,12 @@ Library via Wikimedia Commons.
 ```
 metamorph init [DIR]
 metamorph run [--config F] [--relations a,b] [--limit N] [--gate] [--no-cache] [--budget-usd X]
-metamorph report [RUN_ID|latest] [--format json|junit|html] [--out F]
+metamorph report [RUN_ID|latest] [--format json|junit|html|markdown] [--out F]
 metamorph serve [--port 8765] [--open]      # the cabinet UI + JSON API (/api/docs)
 metamorph triage                            # serve and open the latest run
-metamorph relations list | stats
+metamorph relations list | stats [--export]
+metamorph mine SPEC.md [--hint "..."] [--limit 8]   # propose app-specific relations
+metamorph relations proposals | approve ID... | reject ID...   (--all for every pending one)
 ```
 
 Each run writes `report.json`, `junit.xml` and `report.html` to
@@ -343,6 +425,9 @@ src/metamorph/
   design/        specimen.css, the design system shared by the HTML report and the UI
   server/        FastAPI triage API; static/ holds the built UI
   promotion.py   precision and learned modes
+  miner.py       relation miner: requirements -> validated proposals
+  collection.py  relations/proposed.yaml, custom.yaml and learned.yaml
+action.yml            the GitHub Action (composite)
 ui/                   React + Vite + TypeScript source of the cabinet
 examples/rag_kenya/   demo RAG app with a planted bug (doc order)
 examples/cv_skills/   noisy skill extractor with a planted bug (code-switching) + measure.py
@@ -370,7 +455,8 @@ npm test && npm run build # builds into src/metamorph/server/static
       (embeddings, LLM entailment judge), the self-variance report section, cost budget,
       record/replay, openai_compatible target, HTML report
 - [x] **M3** Triage UI (the cabinet), per-relation precision, learned promotion and demotion
-- [ ] **M4** Relation miner, plus a GitHub Action that comments on PRs
+- [x] **M4** Relation miner (requirements to proposals to human approval to `custom.yaml`),
+      learned modes committed with the repo, and a GitHub Action with a sticky PR comment
 - [ ] **M5** Case study: violations found, false-alarm rate and cost per run
 
 ## Limitations

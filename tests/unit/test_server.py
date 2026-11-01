@@ -94,3 +94,47 @@ def test_spa_fallback(client: TestClient) -> None:
     page = client.get("/runs/anything")
     assert page.status_code == 200 and '<div id="root">' in page.text
     assert client.get("/api/unknown").status_code == 404
+
+
+def test_triage_writes_learned_file(client: TestClient, tmp_path: Path) -> None:
+    report = client.get("/api/runs/latest").json()
+    violation = next(c for c in report["cases"] if c["status"] == "violation")
+    client.post(f"/api/cases/{violation['id']}/triage", json={"verdict": "false_alarm"})
+    learned = (tmp_path / "relations" / "learned.yaml").read_text(encoding="utf-8")
+    assert "false_alarms: 1" in learned
+
+
+async def test_proposals_api(tmp_path: Path) -> None:
+    import json
+
+    from fakes import ScriptedLLM
+
+    from metamorph.collection import proposals_path, save_proposals
+    from metamorph.llm.service import LLMService
+    from metamorph.miner import mine
+    from metamorph.relations import builtin_specs
+
+    cfg = make_config(tmp_path / "p")
+    proposal = {
+        "id": "names-do-not-matter",
+        "requirement": "Names must not matter.",
+        "description": "Swapping names keeps the answer.",
+        "transform": "swap_entities",
+        "transform_params_json": "{}",
+        "comparator": "token_f1",
+        "comparator_params_json": "{}",
+        "threshold": None,
+        "expected": "invariant",
+        "rationale": "Bias.",
+    }
+    llm = LLMService(ScriptedLLM(lambda r: json.dumps({"proposals": [proposal]})))
+    result = await mine(llm, "Names must not matter.", "SPEC.md", set(builtin_specs()))
+    save_proposals(proposals_path(cfg), result.proposals)
+
+    api = TestClient(create_app(cfg))
+    assert [p["spec"]["id"] for p in api.get("/api/proposals").json()] == ["names-do-not-matter"]
+    assert api.post("/api/proposals/names-do-not-matter/approve").json() == []
+    relations = {r["id"]: r for r in api.get("/api/relations").json()["relations"]}
+    assert relations["names-do-not-matter"]["enabled"]
+    assert relations["names-do-not-matter"]["requirement"] == "Names must not matter."
+    assert api.post("/api/proposals/names-do-not-matter/reject").status_code == 400

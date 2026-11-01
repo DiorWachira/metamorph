@@ -1,0 +1,21 @@
+name: Metamorph
+
+# Dogfoods the Metamorph GitHub Action on the CV demo: every pull request gets one summary
+# comment. The demo has a planted bug, so the gate is reported but does not fail the job.
+on:
+  pull_request:
+
+permissions:
+  contents: read
+  pull-requests: write
+
+jobs:
+  metamorph:
+    runs-on: ubuntu-24.04
+    steps:
+      - uses: actions/checkout@v7
+
+      - uses: ./
+        with:
+          working-directory: examples/cv_skills
+          fail-on-gate: "false"

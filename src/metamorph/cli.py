@@ -7,6 +7,8 @@ from __future__ import annotations
 
 import asyncio
 import functools
+import io
+import sys
 from collections.abc import Callable
 from pathlib import Path
 from typing import Annotated, Any
@@ -22,6 +24,7 @@ from metamorph.config import DEFAULT_CONFIG_NAME, load_config
 from metamorph.errors import MetamorphError
 from metamorph.relations import builtin_specs
 from metamorph.reports import RENDERERS, ReportFormat, RunReport
+from metamorph.runner.budget import Budget
 from metamorph.suite import RunOptions, open_store, run_suite
 from metamorph.types import Mode, Status
 
@@ -34,6 +37,11 @@ app = typer.Typer(
 )
 relations_app = typer.Typer(help="Inspect the relation catalogue.", no_args_is_help=True)
 app.add_typer(relations_app, name="relations")
+
+for _stream in (sys.stdout, sys.stderr):
+    # Windows pipes default to cp1252; reports carry emoji, Kiswahili and user text.
+    if isinstance(_stream, io.TextIOWrapper):
+        _stream.reconfigure(encoding="utf-8", errors="replace")
 
 console = Console()
 err = Console(stderr=True)
@@ -242,12 +250,23 @@ def _print_summary(report: RunReport) -> None:
 
 @relations_app.command("stats")
 @exits_on_error
-def relations_stats(config: ConfigOption = Path(DEFAULT_CONFIG_NAME)) -> None:
+def relations_stats(
+    config: ConfigOption = Path(DEFAULT_CONFIG_NAME),
+    export: Annotated[
+        bool, typer.Option("--export", help="Write relations/learned.yaml for CI.")
+    ] = False,
+) -> None:
     """Show triage precision per relation and the mode it has earned."""
+    from metamorph.collection import save_learned
     from metamorph.promotion import MIN_PRECISION, MIN_REVIEWED
 
-    with open_store(load_config(config)) as store:
+    cfg = load_config(config)
+    with open_store(cfg) as store:
         stats = store.relation_stats()
+    if export:
+        path = cfg.resolve(cfg.learned_modes)
+        save_learned(path, stats)
+        console.print(f"wrote {path}: commit it so CI applies the learned modes")
     if not stats:
         console.print("No triaged violations yet. Run `metamorph triage` to review some.")
         return
@@ -307,3 +326,112 @@ def triage(
 ) -> None:
     """Open the latest run's violations in the triage UI."""
     serve(config=config, port=port, open_browser=True, path="/runs/latest")
+
+
+@relations_app.command("proposals")
+@exits_on_error
+def relations_proposals(config: ConfigOption = Path(DEFAULT_CONFIG_NAME)) -> None:
+    """List relations proposed by the miner and awaiting a decision."""
+    from metamorph.collection import load_proposals, proposals_path
+
+    proposals = load_proposals(proposals_path(load_config(config)))
+    pending = [p for p in proposals if p.status == "proposed"]
+    if not pending:
+        console.print("No pending proposals. Run `metamorph mine SPEC.md` to propose some.")
+        return
+    for p in pending:
+        spec = p.spec
+        console.print(
+            f"[bold]{escape(spec.id)}[/]  {spec.transform.name} -> {spec.comparator.name}"
+            f" ({spec.expected.value})"
+        )
+        console.print(f"  {escape(spec.description)}")
+        if spec.requirement:
+            console.print(f'  [dim]requirement: "{escape(spec.requirement)}"[/]')
+        if p.rationale:
+            console.print(f"  [dim]bug it targets: {escape(p.rationale)}[/]")
+    console.print()
+    console.print("Approve with `metamorph relations approve ID...` (or reject).")
+
+
+def _decide(config: Path, ids: list[str], every: bool, status: str) -> None:
+    from metamorph.collection import decide, load_proposals, proposals_path
+
+    cfg = load_config(config)
+    if every:
+        ids = [p.spec.id for p in load_proposals(proposals_path(cfg)) if p.status == "proposed"]
+    if not ids:
+        raise MetamorphError("name at least one proposal id (or pass --all)")
+    decided = decide(cfg, ids, status)  # type: ignore[arg-type]
+    where = cfg.resolve(cfg.custom_relations) if status == "approved" else "proposed.yaml"
+    console.print(f"{status} {len(decided)}: {', '.join(decided)} -> {where}")
+
+
+@relations_app.command("approve")
+@exits_on_error
+def relations_approve(
+    ids: Annotated[list[str] | None, typer.Argument(help="Proposal ids.")] = None,
+    every: Annotated[bool, typer.Option("--all", help="Approve every pending proposal.")] = False,
+    config: ConfigOption = Path(DEFAULT_CONFIG_NAME),
+) -> None:
+    """Approve proposals into relations/custom.yaml (enabled on the next run)."""
+    _decide(config, ids or [], every, "approved")
+
+
+@relations_app.command("reject")
+@exits_on_error
+def relations_reject(
+    ids: Annotated[list[str] | None, typer.Argument(help="Proposal ids.")] = None,
+    every: Annotated[bool, typer.Option("--all", help="Reject every pending proposal.")] = False,
+    config: ConfigOption = Path(DEFAULT_CONFIG_NAME),
+) -> None:
+    """Reject proposals (kept on file so they are not proposed again)."""
+    _decide(config, ids or [], every, "rejected")
+
+
+@app.command()
+@exits_on_error
+def mine(
+    spec: Annotated[Path, typer.Argument(help="Requirements, SPEC or system prompt file.")],
+    config: ConfigOption = Path(DEFAULT_CONFIG_NAME),
+    limit: Annotated[int, typer.Option(min=1, max=20, help="Most proposals to ask for.")] = 8,
+    hint: Annotated[str, typer.Option(help="One line about what the app does.")] = "",
+) -> None:
+    """Propose app-specific relations from requirements, for human approval."""
+    from metamorph.collection import load_custom, load_proposals, proposals_path, save_proposals
+    from metamorph.miner import mine as run_miner
+    from metamorph.relations import builtin_specs
+    from metamorph.runner.cache import Cache
+    from metamorph.suite import build_llm
+
+    cfg = load_config(config)
+    if cfg.llm is None:
+        raise MetamorphError("mining needs a helper model: add an `llm:` section to metamorph.yaml")
+    if not spec.exists():
+        raise MetamorphError(f"requirements file not found: {spec}")
+    path = proposals_path(cfg)
+    existing = load_proposals(path)
+    taken = set(builtin_specs()) | {s.id for s in load_custom(cfg.resolve(cfg.custom_relations))}
+    taken |= {p.spec.id for p in existing}
+
+    async def go() -> tuple[Any, str]:
+        cache = Cache(cfg.resolve(cfg.storage_dir) / "cache.sqlite")
+        llm = build_llm(cfg, cache, Budget(cfg.run.budget_usd), None)
+        assert llm is not None
+        try:
+            result = await run_miner(
+                llm, spec.read_text(encoding="utf-8"), spec.name, taken, hint, limit
+            )
+        finally:
+            await llm.aclose()
+            cache.close()
+        return result, f"${llm.stats.cost_usd:.4f}"
+
+    with console.status("mining relations from the requirements..."):
+        result, cost = asyncio.run(go())
+    save_proposals(path, existing + result.proposals)
+    console.print(f"{len(result.proposals)} proposals written to {path} (cost {cost})")
+    for rel_id, reason in result.rejected:
+        console.print(f"[yellow]dropped[/] {escape(rel_id)}: {escape(reason)}")
+    if result.proposals:
+        console.print("Review them with `metamorph relations proposals` or in the cabinet UI.")

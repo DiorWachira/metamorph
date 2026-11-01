@@ -17,7 +17,7 @@ dependencies = [
     "httpx>=0.27",
     "sqlalchemy>=2.0",
     "jsonpath-ng>=1.6",
-    "jinja2>=3.1",
+    "jinja2>=3.1.6",  # older releases have sandbox-escape advisories
 ]
 
 [project.optional-dependencies]
@@ -55,6 +55,7 @@ select = ["E", "F", "I", "B", "UP", "SIM", "RUF"]
 
 [tool.ruff.lint.per-file-ignores]
 "src/metamorph/templates.py" = ["E501"]  # JSONL seed lines
+"examples/cv_skills/author_recordings.py" = ["E501"]  # authored proposals and quotes
 
 [tool.mypy]
 python_version = "3.12"
