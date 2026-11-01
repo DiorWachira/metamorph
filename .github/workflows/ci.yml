@@ -7,7 +7,7 @@ on:
 
 jobs:
   test:
-    runs-on: ubuntu-latest
+    runs-on: ubuntu-24.04  # pinned: ubuntu-latest moves to 26.04 and would change CI under us
     steps:
       - uses: actions/checkout@v7
 
@@ -30,8 +30,32 @@ jobs:
       - name: Test
         run: pytest -q
 
+  security:
+    # Known-vulnerability audit of Python and UI dependencies.
+    runs-on: ubuntu-24.04
+    steps:
+      - uses: actions/checkout@v7
+
+      - uses: actions/setup-python@v7
+        with:
+          python-version: "3.12"
+          cache: pip
+
+      - uses: actions/setup-node@v7
+        with:
+          node-version: "22"
+
+      - name: Python dependencies
+        run: |
+          pip install -e ".[dev,embeddings]" pip-audit
+          pip-audit --skip-editable
+
+      - name: UI dependencies
+        working-directory: ui
+        run: npm audit --audit-level=moderate
+
   ui:
-    runs-on: ubuntu-latest
+    runs-on: ubuntu-24.04
     defaults:
       run:
         working-directory: ui
@@ -52,7 +76,7 @@ jobs:
   demo-gate:
     # Dogfood the gate: each planted-bug demo must fail with exit code 1 and its fix must pass.
     # The CV demo's LLM transforms replay recorded follow-ups, so no API key is needed.
-    runs-on: ubuntu-latest
+    runs-on: ubuntu-24.04
     needs: test
     strategy:
       matrix:
