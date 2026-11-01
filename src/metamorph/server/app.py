@@ -11,21 +11,22 @@ import random
 from collections.abc import Iterator
 from importlib import resources
 from pathlib import Path
-from typing import Annotated, Any
+from typing import Annotated, Any, Literal
 
 from fastapi import Depends, FastAPI, HTTPException
 from fastapi.responses import FileResponse
 from fastapi.staticfiles import StaticFiles
 from pydantic import BaseModel, Field
 
-from metamorph.config import Config, FieldsConfig
+from metamorph.collection import Proposal, decide, load_proposals, proposals_path, save_learned
+from metamorph.config import Config, FieldsConfig, RelationSpec
 from metamorph.diff import word_diff
 from metamorph.errors import ConfigError, MetamorphError
 from metamorph.promotion import MIN_PRECISION, MIN_REVIEWED
-from metamorph.relations import builtin_specs, resolve_relations
+from metamorph.relations import Relation, builtin_specs, resolve_relations
 from metamorph.reports.model import CaseView, RunReport, Triage
 from metamorph.storage.repo import RelationStats, RunListItem, Store
-from metamorph.suite import open_store
+from metamorph.suite import learned_modes, open_store
 from metamorph.transforms import Resources, TransformContext, build_transform
 from metamorph.transforms.llm import LLMRewrite
 from metamorph.types import Mode
@@ -61,6 +62,7 @@ class RelationEntry(BaseModel):
     mode: Mode
     mode_source: str
     llm: bool
+    requirement: str | None = None
     stats: RelationStats | None
 
 
@@ -170,6 +172,8 @@ def create_app(config: Config) -> FastAPI:
             stats = s.triage(case_id, body.verdict, body.note)
         except MetamorphError as exc:
             raise HTTPException(400, str(exc)) from exc
+        # Keep relations/learned.yaml current, so committing it carries the trust to CI.
+        save_learned(config.resolve(config.learned_modes), s.relation_stats())
         updated = s.load_case(case_id)
         assert updated is not None
         return TriageResponse(case=updated, stats=stats)
@@ -177,49 +181,58 @@ def create_app(config: Config) -> FastAPI:
     @app.get("/api/relations")
     def relations(s: StoreDep) -> RelationsResponse:
         stats = {r.relation_id: r for r in s.relation_stats()}
+        learned = learned_modes(config, s)
         try:
-            enabled = {r.id: r for r in resolve_relations(config, learned_modes=s.learned_modes())}
+            enabled = {r.id: r for r in resolve_relations(config, learned_modes=learned)}
         except ConfigError:
             enabled = {}
-        entries = []
-        for rel_id, spec in builtin_specs().items():
-            params = spec["transform"].get("params", {})
-            transform = build_transform(spec["transform"]["name"], params)
-            rel = enabled.get(rel_id)
-            learned = stats[rel_id].learned_mode if rel_id in stats else None
-            entries.append(
-                RelationEntry(
-                    id=rel_id,
-                    description=spec["description"],
-                    transform=spec["transform"]["name"],
-                    comparator=(rel.spec.comparator.name if rel else spec["comparator"]["name"]),
-                    tags=spec.get("tags", []),
-                    enabled=rel is not None,
-                    mode=rel.mode if rel else (learned or Mode.WARNING),
-                    mode_source=rel.mode_source if rel else ("learned" if learned else "default"),
-                    llm=isinstance(transform, LLMRewrite),
-                    stats=stats.get(rel_id),
-                )
+
+        def entry(spec: RelationSpec, rel: Relation | None) -> RelationEntry:
+            transform = (
+                rel.transform
+                if rel
+                else build_transform(spec.transform.name, spec.transform.params)
             )
-        for rel_id, rel in enabled.items():  # custom relations defined only in config
-            if rel_id not in builtin_specs():
-                entries.append(
-                    RelationEntry(
-                        id=rel_id,
-                        description=rel.spec.description,
-                        transform=rel.spec.transform.name,
-                        comparator=rel.spec.comparator.name,
-                        tags=rel.spec.tags,
-                        enabled=True,
-                        mode=rel.mode,
-                        mode_source=rel.mode_source,
-                        llm=isinstance(rel.transform, LLMRewrite),
-                        stats=stats.get(rel_id),
-                    )
-                )
+            mode_learned = learned.get(spec.id)
+            return RelationEntry(
+                id=spec.id,
+                description=spec.description,
+                transform=spec.transform.name,
+                comparator=spec.comparator.name,
+                tags=spec.tags,
+                enabled=rel is not None,
+                mode=rel.mode if rel else (mode_learned or Mode.WARNING),
+                mode_source=rel.mode_source if rel else ("learned" if mode_learned else "default"),
+                llm=isinstance(transform, LLMRewrite),
+                requirement=spec.requirement,
+                stats=stats.get(spec.id),
+            )
+
+        entries = [
+            entry(
+                enabled[rel_id].spec if rel_id in enabled else RelationSpec.model_validate(raw),
+                enabled.get(rel_id),
+            )
+            for rel_id, raw in builtin_specs().items()
+        ]
+        entries += [
+            entry(r.spec, r) for rel_id, r in enabled.items() if rel_id not in builtin_specs()
+        ]
         return RelationsResponse(
             relations=entries, min_reviewed=MIN_REVIEWED, min_precision=MIN_PRECISION
         )
+
+    @app.get("/api/proposals")
+    def proposals() -> list[Proposal]:
+        return [p for p in load_proposals(proposals_path(config)) if p.status == "proposed"]
+
+    @app.post("/api/proposals/{rel_id}/{decision}")
+    def decide_proposal(rel_id: str, decision: Literal["approve", "reject"]) -> list[Proposal]:
+        try:
+            decide(config, [rel_id], "approved" if decision == "approve" else "rejected")
+        except MetamorphError as exc:
+            raise HTTPException(400, str(exc)) from exc
+        return proposals()
 
     @app.post("/api/lab/transform")
     def lab(body: LabRequest) -> LabResponse:

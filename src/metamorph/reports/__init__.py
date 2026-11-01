@@ -6,14 +6,24 @@ from typing import Literal
 from metamorph.reports.html import render_html
 from metamorph.reports.json_report import render_json
 from metamorph.reports.junit import render_junit
+from metamorph.reports.markdown import render_markdown
 from metamorph.reports.model import RunReport
 
-ReportFormat = Literal["json", "junit", "html"]
+ReportFormat = Literal["json", "junit", "html", "markdown"]
 
 RENDERERS: dict[str, tuple[Callable[[RunReport], str], str]] = {
     "json": (render_json, "report.json"),
     "junit": (render_junit, "junit.xml"),
     "html": (render_html, "report.html"),
+    "markdown": (render_markdown, "summary.md"),
 }
 
-__all__ = ["RENDERERS", "ReportFormat", "RunReport", "render_html", "render_json", "render_junit"]
+__all__ = [
+    "RENDERERS",
+    "ReportFormat",
+    "RunReport",
+    "render_html",
+    "render_json",
+    "render_junit",
+    "render_markdown",
+]

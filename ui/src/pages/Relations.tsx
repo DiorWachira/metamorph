@@ -1,8 +1,87 @@
-import { api, type RelationEntry } from "../api";
+import { useState } from "react";
+
+import { api, type Proposal, type RelationEntry } from "../api";
 import { ModeTag, SectionHead } from "../components/Specimen";
 import { Await } from "../components/States";
+import { useToast } from "../components/Toast";
 import { pct } from "../format";
 import { useLoad } from "../hooks";
+
+const params = (p: Record<string, unknown>) =>
+  Object.keys(p).length ? JSON.stringify(p) : "";
+
+/**
+ * Proposals from `metamorph mine`, each shown as a determination slip quoting the requirement it
+ * was derived from. Approving writes it into relations/custom.yaml.
+ */
+function Proposals({ onDecided }: { onDecided: () => void }) {
+  const [list, reload] = useLoad(() => api.proposals(), []);
+  const [busy, setBusy] = useState<string | null>(null);
+  const toast = useToast();
+
+  async function decide(p: Proposal, decision: "approve" | "reject") {
+    setBusy(p.spec.id);
+    try {
+      await api.decide(p.spec.id, decision);
+      toast(
+        `${p.spec.id}: ${decision === "approve" ? "accessioned" : "rejected"}`,
+        decision === "approve" ? "written to relations/custom.yaml; enabled on the next run" : undefined,
+      );
+      reload();
+      onDecided();
+    } finally {
+      setBusy(null);
+    }
+  }
+
+  return (
+    <Await value={list} what="proposals">
+      {(proposals) =>
+        proposals.length === 0 ? null : (
+          <section>
+            <SectionHead no="§0" title="Proposed by the miner">
+              <span className="caption">Derived from your requirements; nothing runs until you approve it.</span>
+            </SectionHead>
+            <div className="proposals">
+              {proposals.map((p) => (
+                <article key={p.spec.id} className="det-slip proposal">
+                  <div className="det-line label">
+                    Proposal · from {p.source || "requirements"} · {p.model}
+                  </div>
+                  <h3 className="proposal-id">{p.spec.id}</h3>
+                  {p.spec.requirement && <blockquote className="requirement">“{p.spec.requirement}”</blockquote>}
+                  <p className="caption">{p.spec.description}</p>
+                  <div className="det-line mono proposal-recipe">
+                    {p.spec.transform.name}
+                    {params(p.spec.transform.params) && <span className="muted"> {params(p.spec.transform.params)}</span>}
+                    {" → "}
+                    {p.spec.comparator.name}
+                    {p.spec.comparator.threshold !== null && ` ≥ ${p.spec.comparator.threshold}`}
+                    {p.spec.expected === "flips" && <b> · must flip</b>}
+                  </div>
+                  {p.rationale && (
+                    <p className="caption">
+                      <span className="label">Bug it targets · </span>
+                      {p.rationale}
+                    </p>
+                  )}
+                  <div className="det-actions">
+                    <button className="btn primary" disabled={busy === p.spec.id} onClick={() => decide(p, "approve")}>
+                      Approve
+                    </button>
+                    <button className="btn" disabled={busy === p.spec.id} onClick={() => decide(p, "reject")}>
+                      Reject
+                    </button>
+                  </div>
+                </article>
+              ))}
+            </div>
+          </section>
+        )
+      }
+    </Await>
+  );
+}
 
 const SOURCE_WORD: Record<string, string> = {
   config: "pinned in metamorph.yaml",
@@ -58,7 +137,7 @@ function PrecisionMeter({
 }
 
 export function Relations() {
-  const [data] = useLoad(() => api.relations(), []);
+  const [data, reload] = useLoad(() => api.relations(), []);
   return (
     <div>
       <header className="page-head">
@@ -70,6 +149,7 @@ export function Relations() {
           earned it.
         </p>
       </header>
+      <Proposals onDecided={reload} />
       <Await value={data} what="the collection">
         {(d) => (
           <>
@@ -90,6 +170,7 @@ export function Relations() {
                       {r.llm && <span className="label">LLM</span>}
                     </div>
                     <p className="caption">{r.description}</p>
+                    {r.requirement && <blockquote className="requirement">“{r.requirement}”</blockquote>}
                     <div className="label">
                       {r.transform} → {r.comparator}
                       {r.tags.length > 0 && ` · tags ${r.tags.join(", ")}`} · {SOURCE_WORD[r.mode_source]}

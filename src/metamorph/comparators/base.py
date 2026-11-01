@@ -37,6 +37,11 @@ class Comparator(ABC):
 _REGISTRY: dict[str, type[Comparator]] = {}
 
 
+def registry() -> dict[str, type[Comparator]]:
+    """Every registered comparator by name (a copy)."""
+    return dict(_REGISTRY)
+
+
 def register[T: type[Comparator]](cls: T) -> T:
     _REGISTRY[cls.name] = cls
     return cls

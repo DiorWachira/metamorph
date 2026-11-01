@@ -173,3 +173,22 @@ def test_cv_fixed_extractor_passes(cv_demo: Path, monkeypatch: pytest.MonkeyPatc
     monkeypatch.setenv("CV_FIXED", "1")
     code, output = run_cli("run", "--gate", "--no-cache", "-c", str(cv_demo / "metamorph.yaml"))
     assert code == EXIT_PASS, output
+
+
+def test_cv_miner_proposes_and_approved_relations_run(cv_demo: Path) -> None:
+    config = str(cv_demo / "metamorph.yaml")
+    hint = "Extracts skills from CVs for a Kenyan job-matching service."
+    code, output = run_cli("mine", str(cv_demo / "SPEC.md"), "-c", config, "--hint", hint)
+    assert code == EXIT_PASS, output
+    assert "5 proposals" in output and "dropped years-are-not-skills" in output
+
+    code, output = run_cli("relations", "approve", "location-swap-invariance", "-c", config)
+    assert code == EXIT_PASS, output
+    code, output = run_cli("relations", "reject", "--all", "-c", config)
+    assert code == EXIT_PASS and "rejected 4" in output
+
+    run_cli("run", "-c", config)
+    report = latest_json(cv_demo)
+    mined = [c for c in report["cases"] if c["relation_id"] == "location-swap-invariance"]
+    assert mined and all(c["status"] == "pass" for c in mined)
+    assert (next((cv_demo / ".metamorph" / "reports").iterdir()) / "summary.md").exists()

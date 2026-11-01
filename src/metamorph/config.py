@@ -128,6 +128,8 @@ class RelationSpec(_Strict):
     # None = learned from triage precision (relation_stats), defaulting to WARNING.
     mode: Mode | None = None
     followups: int = Field(default=1, ge=1)
+    # The requirement sentence a mined relation was derived from (provenance for reviewers).
+    requirement: str | None = None
 
 
 class Config(_Strict):
@@ -140,6 +142,10 @@ class Config(_Strict):
     cache: CacheConfig = Field(default_factory=CacheConfig)
     resources: ResourcesConfig = Field(default_factory=ResourcesConfig)
     llm: LLMConfig | None = None
+    # Relations approved from the miner (enabled automatically) and modes learned by triage;
+    # both are committed with the repo so CI sees them.
+    custom_relations: Path = Path("relations/custom.yaml")
+    learned_modes: Path = Path("relations/learned.yaml")
     storage_dir: Path = Path(".metamorph")
 
     base_dir: Path = Field(default=Path("."), exclude=True)

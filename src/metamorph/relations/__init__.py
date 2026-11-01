@@ -91,13 +91,21 @@ def resolve_relations(
 ) -> list[Relation]:
     """Build the relations enabled in config, optionally narrowed to the ids in `only`.
 
-    A relation's mode is the one pinned in config, else the one learned from triage
-    (`learned_modes`), else WARNING.
+    Approved custom relations (relations/custom.yaml) join the catalogue and are enabled even
+    when metamorph.yaml does not list them. A relation's mode is the one pinned in config, else
+    the one learned from triage (`learned_modes`), else WARNING.
     """
+    from metamorph.collection import load_custom
+
     learned_modes = learned_modes or {}
-    catalogue = builtin_specs()
+    custom = load_custom(config.resolve(config.custom_relations))
+    catalogue = builtin_specs() | {
+        s.id: s.model_dump(mode="json", exclude_none=True) for s in custom
+    }
+    listed = {e if isinstance(e, str) else e.get("id") for e in config.relations}
+    entries = [*config.relations, *(s.id for s in custom if s.id not in listed)]
     relations: list[Relation] = []
-    for entry in config.relations:
+    for entry in entries:
         raw = {"id": entry} if isinstance(entry, str) else entry
         rel_id = raw.get("id")
         if not isinstance(rel_id, str):
