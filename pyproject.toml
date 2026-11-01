@@ -63,5 +63,5 @@ packages = ["metamorph"]
 mypy_path = "src"
 
 [[tool.mypy.overrides]]
-module = ["jsonpath_ng.*"]
+module = ["jsonpath_ng.*", "fastembed.*"]
 ignore_missing_imports = true
