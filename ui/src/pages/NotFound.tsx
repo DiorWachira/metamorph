@@ -2,12 +2,13 @@ import { Link } from "react-router-dom";
 
 import { ColourPlate } from "../components/Alive";
 import { Stamp } from "../components/Specimen";
+import { asset } from "../format";
 
 export function NotFound() {
   return (
     <div className="not-found">
       <figure className="mount not-found-plate">
-        <ColourPlate src="/plates/plate-viii.webp" width={900} height={1265} alt="Merian's plate VIII: frangipani with moths." />
+        <ColourPlate src={asset("plates/plate-viii.webp")} width={900} height={1265} alt="Merian's plate VIII: frangipani with moths." />
       </figure>
       <div className="not-found-copy">
         <div className="label">Error 404 · catalogue lookup</div>

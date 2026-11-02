@@ -1504,3 +1504,12 @@ kbd {
     margin-top: 110px;
   }
 }
+
+/* The public demo says what it is, in the same quiet mono as the rest of the labels. */
+.demo-note {
+  position: relative;
+  z-index: 1;
+  margin: 20px 0 -24px;
+  padding: 0 var(--gutter);
+  text-align: center;
+}

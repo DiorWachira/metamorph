@@ -8,7 +8,7 @@ import { Drawer, PinLegend } from "../components/Drawer";
 import { DiffText, Plate } from "../components/Plate";
 import { Figure, GateStamp, SectionHead, Stamp } from "../components/Specimen";
 import { Await } from "../components/States";
-import { pct, usd, when } from "../format";
+import { asset, pct, usd, when } from "../format";
 import { useLoad } from "../hooks";
 
 // A real case from examples/cv_skills: the extractor only reads skills after English cue
@@ -26,7 +26,7 @@ function HeroPlate() {
   return (
     <figure className="hero-plate">
       <ColourPlate
-        src="/habitat/plate-vii-cut.webp"
+        src={asset("habitat/plate-vii-cut.webp")}
         width={1052}
         height={1400}
         coloured={coloured}
@@ -52,7 +52,7 @@ function HowARelationReads() {
         <figure className="reading-step">
           <ColourPlate
             cover
-            src="/plates/plate-vii-larva.webp"
+            src={asset("plates/plate-vii-larva.webp")}
             width={345}
             height={350}
             alt="The caterpillar, detail of plate VII."
@@ -67,7 +67,7 @@ function HowARelationReads() {
         <figure className="reading-step">
           <ColourPlate
             cover
-            src="/plates/plate-vii-imago.webp"
+            src={asset("plates/plate-vii-imago.webp")}
             width={660}
             height={630}
             alt="The blue Morpho butterfly, detail of plate VII."

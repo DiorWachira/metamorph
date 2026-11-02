@@ -46,3 +46,6 @@ export const TRIAGE_WORD = {
 export function show(value: unknown): string {
   return typeof value === "string" ? value : JSON.stringify(value, null, 2);
 }
+
+/** A file from ui/public, wherever the UI is hosted. */
+export const asset = (path: string) => `${import.meta.env.BASE_URL}${path}`;

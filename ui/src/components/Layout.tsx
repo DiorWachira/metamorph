@@ -1,6 +1,7 @@
 import { useCallback, useEffect, useState } from "react";
 import { NavLink, Outlet, useLocation } from "react-router-dom";
 
+import { READ_ONLY } from "../api";
 import { useStored } from "../hooks";
 import { baseLife, creature, lifeAt } from "../life";
 import { Lamp, useAliveCabinet } from "./Alive";
@@ -94,6 +95,11 @@ export function Layout() {
       </header>
       {/* Wait for the shell's position, so the butterfly really does leave the chrysalis. */}
       <Butterfly free={creature(life).butterfly && shell.x > 0} from={shell} />
+      {READ_ONLY && (
+        <p className="demo-note label">
+          Read-only demo · a frozen snapshot of the CV demo · nothing you do here is saved
+        </p>
+      )}
       <main id="main" className="page">
         <Outlet />
       </main>

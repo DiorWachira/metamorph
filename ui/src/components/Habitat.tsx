@@ -1,5 +1,6 @@
 import { useEffect, useMemo, useRef } from "react";
 
+import { asset } from "../format";
 import { prefersReducedMotion } from "./Alive";
 
 /** Seeded so that the same specks of pollen drift across the page on every visit. */
@@ -68,10 +69,10 @@ export function Habitat({ life, home }: { life: number; home: boolean }) {
       <div className="sky sky-dusk" />
       <div className="tile tile-back" data-tile="900" data-depth="0.06" />
       <div className="tile tile-front" data-tile="620" data-depth="0.14" />
-      <img className="specimen sp-frangipani" data-drift="150" src="/habitat/frangipani.webp" alt="" />
-      <img className="specimen sp-branch" data-drift="240" src="/habitat/branch.webp" alt="" />
-      <img className="specimen sp-moth" data-drift="520" src="/habitat/moth.webp" alt="" />
-      <img className="specimen sp-morpho" data-drift="380" src="/habitat/morpho.webp" alt="" />
+      <img className="specimen sp-frangipani" data-drift="150" src={asset("habitat/frangipani.webp")} alt="" />
+      <img className="specimen sp-branch" data-drift="240" src={asset("habitat/branch.webp")} alt="" />
+      <img className="specimen sp-moth" data-drift="520" src={asset("habitat/moth.webp")} alt="" />
+      <img className="specimen sp-morpho" data-drift="380" src={asset("habitat/morpho.webp")} alt="" />
       <div className="calm">
         <div className="sky sky-dawn" />
         <div className="sky sky-dusk" />

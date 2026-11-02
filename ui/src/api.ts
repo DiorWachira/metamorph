@@ -189,8 +189,15 @@ export class ApiError extends Error {
   }
 }
 
+/** The public demo has no server: it reads a frozen snapshot and cannot record anything. */
+export const READ_ONLY = import.meta.env.VITE_SNAPSHOT === "1";
+
 async function request<T>(path: string, init?: RequestInit): Promise<T> {
-  const response = await fetch(path, {
+  if (READ_ONLY && init?.method) {
+    throw new ApiError(403, "This is a read-only demo. Install Metamorph to use this for real.");
+  }
+  const url = READ_ONLY ? `${import.meta.env.BASE_URL}snapshot${path}.json` : path;
+  const response = await fetch(url, {
     ...init,
     headers: { "Content-Type": "application/json", ...init?.headers },
   });
