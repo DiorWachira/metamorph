@@ -1,0 +1,54 @@
+{
+  "root": "github.com/DiorWachira/metamorph",
+  "score": 100,
+  "checks": [
+    {
+      "id": "readme",
+      "title": "README present and substantial",
+      "status": "pass",
+      "detail": "README.md, 27254 chars"
+    },
+    {
+      "id": "license",
+      "title": "LICENSE declared",
+      "status": "pass",
+      "detail": "LICENSE"
+    },
+    {
+      "id": "gitignore",
+      "title": "Ignore file configured",
+      "status": "pass",
+      "detail": "17 rules"
+    },
+    {
+      "id": "tests",
+      "title": "Automated tests exist",
+      "status": "pass",
+      "detail": "17 test files"
+    },
+    {
+      "id": "ci",
+      "title": "Continuous integration configured",
+      "status": "pass",
+      "detail": "2 pipeline files"
+    },
+    {
+      "id": "todos",
+      "title": "Unresolved TODO markers",
+      "status": "pass",
+      "detail": "1 markers"
+    },
+    {
+      "id": "large-files",
+      "title": "No oversized files committed",
+      "status": "pass",
+      "detail": "none over 5 MB"
+    },
+    {
+      "id": "secrets",
+      "title": "No hardcoded secrets",
+      "status": "pass",
+      "detail": "no credential-like literals found"
+    }
+  ]
+}

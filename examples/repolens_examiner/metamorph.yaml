@@ -1,0 +1,39 @@
+# Case study: Metamorph on RepoLens's offline Examiner, the deterministic mode its site ships.
+#
+#   git clone https://github.com/DiorWachira/repolens ../../../repolens
+#   git -C ../../../repolens checkout 8955383
+#   cd examples/repolens_examiner && metamorph run
+#
+# Rewrites replay hand-written follow-ups (see make_case.py), so this runs with no API key. The
+# target is deterministic and has no self-variance to measure, so one sample per input is enough.
+# Answers are compared as text: the same route through the Examiner gives the same words.
+
+target:
+  type: python
+  callable: examiner:answer
+
+seeds: seeds.jsonl
+
+fields:
+  text: question
+
+llm:
+  provider: replay
+  recordings: recordings.jsonl
+
+relations:
+  - typo-robustness
+  - id: paraphrase-invariance
+    comparator: {name: token_f1, threshold: 0.8}
+  - id: code-switch-invariance
+    comparator: {name: token_f1, threshold: 0.8}
+  - id: politeness-invariance
+    comparator: {name: token_f1, threshold: 0.8}
+
+run:
+  seed: 5
+  samples: 1
+  concurrency: 2   # each call starts Node
+
+gate:
+  max_blocking_violations: 0

@@ -29,8 +29,9 @@ What sets it apart:
   stops a run gracefully, and recorded LLM calls replay in CI with no API key.
 
 > **Status:** milestones 1–4 of 5 are done (core engine; LLM relations and self-variance
-> baseline; triage UI and learned promotion; relation miner and GitHub Action). See the
-> [roadmap](#roadmap).
+> baseline; triage UI and learned promotion; relation miner and GitHub Action). M5 is under way:
+> the [first case study](#case-study-repolenss-offline-examiner) is published, and the run against
+> a live LLM still needs an API key. See the [roadmap](#roadmap).
 
 ![The Metamorph cabinet: "Same question, new form. Same answer?" beside Merian's plate VII](docs/images/home.webp)
 
@@ -429,6 +430,51 @@ test reporter turns red exactly when the gate fails. The HTML report is one stat
   threshold and noise floor;
 - the unstable inputs.
 
+## Case study: RepoLens's offline Examiner
+
+[RepoLens](https://github.com/DiorWachira/repolens) examines a repository and offers an Examiner to
+ask about the result. This study tests its **offline mode**, the deterministic keyword router its
+site ships, by running the real browser code at commit `8955383`. It is **not an LLM test**: the
+Gemini mode is not covered yet, and neither is any live model. Follow-ups are hand-written replays.
+
+| | |
+|---|---|
+| Inputs | 30: 10 questions (the Examiner's own prompts and plain ones) × 3 real examinations |
+| Cases | 120 across 4 relations |
+| Violations | 22 |
+| Provisional precision | 4 of 22 true defects (18%), so an **82% false-alarm rate** on this target |
+| Cost and time | $0 (no LLM calls), 11 seconds |
+
+| Relation | Cases | Violations | True defects | False alarms |
+|---|---:|---:|---:|---:|
+| `typo-robustness` | 30 | 4 | 4 | 0 |
+| `paraphrase-invariance` | 30 | 15 | 0 | 15 |
+| `code-switch-invariance` | 30 | 3 | 0 | 3 |
+| `politeness-invariance` | 30 | 0 | 0 | 0 |
+
+**The defect it found:** one misspelled letter drops a documented question to the fallback answer.
+"Build a fix pkan for the whole report" and "What should I fix fiirst, and why?" get a general
+summary instead of the plan or the first fix. The severity is low, because the fallback explains
+what to ask instead.
+
+**Why so many false alarms:** the offline mode says it handles a plan, what to fix first and
+explaining a line, and sends free-form questions to Gemini. Rewordings like "What matters most for
+me to work on now?" really do get a different answer, but that is the documented scope and not a
+bug. This is the case for starting every relation as a warning: the free-form relations were the
+wrong test for a keyword router, and triage shows that.
+
+**How far to trust these numbers:**
+
+- The determinations are the author's, made by one written rule in
+  [`apply_triage.py`](examples/repolens_examiner/apply_triage.py), not by an independent reviewer.
+- The 22 violations are not independent. The same wordings recur across three reports, so they
+  come from 10 distinct follow-up questions.
+- No relation reached the 20 reviews that learned promotion needs, so promotion is **not yet shown
+  on real data**. The study did not pad its inputs to get there.
+- The self-variance baseline does not apply, because this target is deterministic.
+
+To reproduce it, see [`examples/repolens_examiner/metamorph.yaml`](examples/repolens_examiner/metamorph.yaml).
+
 ## Project layout
 
 ```
@@ -452,6 +498,7 @@ action.yml            the GitHub Action (composite)
 ui/                   React + Vite + TypeScript source of the cabinet
 examples/rag_kenya/   demo RAG app with a planted bug (doc order)
 examples/cv_skills/   noisy skill extractor with a planted bug (code-switching) + measure.py
+examples/repolens_examiner/   case study on RepoLens's real offline Examiner
 tests/                unit, Hypothesis property, runner (scripted fake target), end-to-end
 ```
 
@@ -479,6 +526,9 @@ npm test && npm run build # builds into src/metamorph/server/static
 - [x] **M4** Relation miner (requirements to proposals to human approval to `custom.yaml`),
       learned modes committed with the repo, and a GitHub Action with a sticky PR comment
 - [ ] **M5** Case study: violations found, false-alarm rate and cost per run
+  - [x] RepoLens's offline Examiner, with published results
+  - [ ] RepoLens's Gemini Examiner and real recorded helper-model calls (needs an API key)
+  - [ ] Learned promotion on real data (20+ determinations per relation)
 
 ## Limitations
 

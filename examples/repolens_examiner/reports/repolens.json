@@ -1,0 +1,54 @@
+{
+  "root": "github.com/DiorWachira/repolens",
+  "score": 94,
+  "checks": [
+    {
+      "id": "readme",
+      "title": "README present and substantial",
+      "status": "pass",
+      "detail": "README.md, 11489 chars"
+    },
+    {
+      "id": "license",
+      "title": "LICENSE declared",
+      "status": "pass",
+      "detail": "LICENSE"
+    },
+    {
+      "id": "gitignore",
+      "title": "Ignore file configured",
+      "status": "pass",
+      "detail": "15 rules"
+    },
+    {
+      "id": "tests",
+      "title": "Automated tests exist",
+      "status": "pass",
+      "detail": "4 test files"
+    },
+    {
+      "id": "ci",
+      "title": "Continuous integration configured",
+      "status": "pass",
+      "detail": "1 pipeline files"
+    },
+    {
+      "id": "todos",
+      "title": "Unresolved TODO markers",
+      "status": "warn",
+      "detail": "50 markers across the codebase"
+    },
+    {
+      "id": "large-files",
+      "title": "No oversized files committed",
+      "status": "pass",
+      "detail": "none over 5 MB"
+    },
+    {
+      "id": "secrets",
+      "title": "No hardcoded secrets",
+      "status": "pass",
+      "detail": "no credential-like literals found"
+    }
+  ]
+}

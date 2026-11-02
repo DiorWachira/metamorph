@@ -1,0 +1,54 @@
+{
+  "root": "github.com/DiorWachira/flex-lexical-scanner",
+  "score": 62,
+  "checks": [
+    {
+      "id": "readme",
+      "title": "README present and substantial",
+      "status": "fail",
+      "detail": "no README at repo root"
+    },
+    {
+      "id": "license",
+      "title": "LICENSE declared",
+      "status": "warn",
+      "detail": "no LICENSE file - reuse terms are unclear"
+    },
+    {
+      "id": "gitignore",
+      "title": "Ignore file configured",
+      "status": "pass",
+      "detail": "2 rules"
+    },
+    {
+      "id": "tests",
+      "title": "Automated tests exist",
+      "status": "fail",
+      "detail": "no test files found"
+    },
+    {
+      "id": "ci",
+      "title": "Continuous integration configured",
+      "status": "warn",
+      "detail": "no CI pipeline detected"
+    },
+    {
+      "id": "todos",
+      "title": "Unresolved TODO markers",
+      "status": "pass",
+      "detail": "0 markers"
+    },
+    {
+      "id": "large-files",
+      "title": "No oversized files committed",
+      "status": "pass",
+      "detail": "none over 5 MB"
+    },
+    {
+      "id": "secrets",
+      "title": "No hardcoded secrets",
+      "status": "pass",
+      "detail": "no credential-like literals found"
+    }
+  ]
+}

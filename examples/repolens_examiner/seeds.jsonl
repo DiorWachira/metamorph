@@ -1,0 +1,30 @@
+{"id": "flex-review", "tags": ["examiner"], "input": {"question": "Give me an initial review of this report and a prioritized fix plan.", "report": "flex"}}
+{"id": "flex-first", "tags": ["examiner"], "input": {"question": "What should I fix first, and why?", "report": "flex"}}
+{"id": "flex-explain", "tags": ["examiner"], "input": {"question": "Explain the check I'm looking at and how to resolve it.", "report": "flex", "focus": "readme"}}
+{"id": "flex-false-positives", "tags": ["examiner"], "input": {"question": "Which of these findings could be false positives?", "report": "flex"}}
+{"id": "flex-how-fix", "tags": ["examiner"], "input": {"question": "How do I fix this check?", "report": "flex", "focus": "readme"}}
+{"id": "flex-whole-plan", "tags": ["examiner"], "input": {"question": "Build a fix plan for the whole report", "report": "flex"}}
+{"id": "flex-important", "tags": ["examiner"], "input": {"question": "What is the most important thing to do next?", "report": "flex"}}
+{"id": "flex-meaning", "tags": ["examiner"], "input": {"question": "What does this line mean?", "report": "flex", "focus": "readme"}}
+{"id": "flex-healthy", "tags": ["examiner"], "input": {"question": "Is this repository healthy overall?", "report": "flex"}}
+{"id": "flex-score", "tags": ["examiner"], "input": {"question": "What steps should I take to improve the score?", "report": "flex"}}
+{"id": "repolens-review", "tags": ["examiner"], "input": {"question": "Give me an initial review of this report and a prioritized fix plan.", "report": "repolens"}}
+{"id": "repolens-first", "tags": ["examiner"], "input": {"question": "What should I fix first, and why?", "report": "repolens"}}
+{"id": "repolens-explain", "tags": ["examiner"], "input": {"question": "Explain the check I'm looking at and how to resolve it.", "report": "repolens", "focus": "todos"}}
+{"id": "repolens-false-positives", "tags": ["examiner"], "input": {"question": "Which of these findings could be false positives?", "report": "repolens"}}
+{"id": "repolens-how-fix", "tags": ["examiner"], "input": {"question": "How do I fix this check?", "report": "repolens", "focus": "todos"}}
+{"id": "repolens-whole-plan", "tags": ["examiner"], "input": {"question": "Build a fix plan for the whole report", "report": "repolens"}}
+{"id": "repolens-important", "tags": ["examiner"], "input": {"question": "What is the most important thing to do next?", "report": "repolens"}}
+{"id": "repolens-meaning", "tags": ["examiner"], "input": {"question": "What does this line mean?", "report": "repolens", "focus": "todos"}}
+{"id": "repolens-healthy", "tags": ["examiner"], "input": {"question": "Is this repository healthy overall?", "report": "repolens"}}
+{"id": "repolens-score", "tags": ["examiner"], "input": {"question": "What steps should I take to improve the score?", "report": "repolens"}}
+{"id": "metamorph-review", "tags": ["examiner"], "input": {"question": "Give me an initial review of this report and a prioritized fix plan.", "report": "metamorph"}}
+{"id": "metamorph-first", "tags": ["examiner"], "input": {"question": "What should I fix first, and why?", "report": "metamorph"}}
+{"id": "metamorph-explain", "tags": ["examiner"], "input": {"question": "Explain the check I'm looking at and how to resolve it.", "report": "metamorph", "focus": "readme"}}
+{"id": "metamorph-false-positives", "tags": ["examiner"], "input": {"question": "Which of these findings could be false positives?", "report": "metamorph"}}
+{"id": "metamorph-how-fix", "tags": ["examiner"], "input": {"question": "How do I fix this check?", "report": "metamorph", "focus": "readme"}}
+{"id": "metamorph-whole-plan", "tags": ["examiner"], "input": {"question": "Build a fix plan for the whole report", "report": "metamorph"}}
+{"id": "metamorph-important", "tags": ["examiner"], "input": {"question": "What is the most important thing to do next?", "report": "metamorph"}}
+{"id": "metamorph-meaning", "tags": ["examiner"], "input": {"question": "What does this line mean?", "report": "metamorph", "focus": "readme"}}
+{"id": "metamorph-healthy", "tags": ["examiner"], "input": {"question": "Is this repository healthy overall?", "report": "metamorph"}}
+{"id": "metamorph-score", "tags": ["examiner"], "input": {"question": "What steps should I take to improve the score?", "report": "metamorph"}}
