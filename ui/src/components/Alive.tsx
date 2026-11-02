@@ -3,7 +3,7 @@ import { useEffect, useRef, useState, type PointerEvent } from "react";
 /** How long the page stays hand-coloured after the last movement, scroll or key press. */
 export const IDLE_MS = 2600;
 
-const prefersReducedMotion = () =>
+export const prefersReducedMotion = () =>
   typeof window.matchMedia === "function" && window.matchMedia("(prefers-reduced-motion: reduce)").matches;
 
 /**
@@ -34,6 +34,7 @@ export function useAliveCabinet() {
     const onPointer = (e: globalThis.PointerEvent) => {
       wake();
       if (e.pointerType !== "mouse") return; // the lamp follows a mouse, not a finger
+      root.dataset.lamp = "on"; // and stays off until there is a mouse to follow
       cancelAnimationFrame(frame);
       frame = requestAnimationFrame(() => {
         root.style.setProperty("--mx", `${e.clientX}px`);
@@ -55,6 +56,7 @@ export function useAliveCabinet() {
       window.clearTimeout(idleTimer);
       cancelAnimationFrame(frame);
       delete root.dataset.alive;
+      delete root.dataset.lamp;
     };
   }, []);
 }

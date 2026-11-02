@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import { Link } from "react-router-dom";
 
 import { api } from "../api";
@@ -17,25 +17,26 @@ const SOURCE_CV = "She is proficient in Python, SQL and Power BI.";
 const FOLLOWUP_CV = "Yeye ni moto kwa Python, SQL na Power BI.";
 
 function HeroPlate() {
+  // The plate arrives as a bare engraving and the colour floods in, as under a colourist's brush.
   const [coloured, setColoured] = useState(false);
+  useEffect(() => {
+    const timer = window.setTimeout(() => setColoured(true), 500);
+    return () => window.clearTimeout(timer);
+  }, []);
   return (
     <figure className="hero-plate">
-      <div className="mount">
-        <ColourPlate
-          src="/plates/plate-vii.webp"
-          width={1060}
-          height={1410}
-          coloured={coloured}
-          alt="Merian's plate VII: a spiny caterpillar on a cherry branch and the blue Morpho butterfly it becomes."
-        />
-        <span className="mount-no label">Pl. VII</span>
-      </div>
+      <ColourPlate
+        src="/habitat/plate-vii-cut.webp"
+        width={1052}
+        height={1400}
+        coloured={coloured}
+        alt="Merian's plate VII: a spiny caterpillar on a cherry branch and the blue Morpho butterfly it becomes."
+      />
       <figcaption className="caption">
-        <b className="label">Fig. 1</b> One species, two forms. Move over the engraving to hand-colour it,
-        as Merian's colourists did. Maria Sibylla Merian,{" "}
-        <i>Metamorphosis insectorum Surinamensium</i>, pl. VII (1705). Koninklijke Bibliotheek, via
-        Wikimedia Commons; public domain.{" "}
-        <button className="link-button" onClick={() => setColoured((c) => !c)} aria-pressed={coloured}>
+        <b className="label">Fig. 1 · Pl. VII</b> One species, two forms. Maria Sibylla Merian,{" "}
+        <i>Metamorphosis insectorum Surinamensium</i> (1705), cut from its paper. Koninklijke
+        Bibliotheek, via Wikimedia Commons; public domain.{" "}
+        <button className="link-button" onClick={() => setColoured((c) => !c)} aria-pressed={!coloured}>
           {coloured ? "Show the engraving" : "Hand-colour the plate"}
         </button>
       </figcaption>

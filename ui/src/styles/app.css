@@ -6,6 +6,8 @@
   min-height: 100vh;
   display: flex;
   flex-direction: column;
+  position: relative;
+  overflow-x: clip;
 }
 
 .skip {
@@ -25,8 +27,7 @@
   display: flex;
   align-items: center;
   gap: 24px;
-  padding: 14px var(--gutter);
-  border-bottom: 3px double var(--ink);
+  padding: 14px var(--gutter) 22px;
   background: var(--paper);
   position: sticky;
   top: 0;
@@ -104,19 +105,43 @@
 
 .page {
   width: 100%;
-  max-width: 1180px;
+  max-width: 1120px;
   margin: 0 auto;
-  padding: 32px var(--gutter) 96px;
+  padding: 44px var(--gutter) 96px;
   flex: 1;
+  position: relative;
+  z-index: 1;
 }
 
+/* The forest floor: the page ends standing in grass. */
 .colophon {
   display: flex;
   flex-wrap: wrap;
   justify-content: space-between;
   gap: 8px 24px;
-  border-top: 1px solid var(--rule);
-  padding: 16px var(--gutter) 28px;
+  position: relative;
+  z-index: 1;
+  margin-top: 150px;
+  padding: 18px var(--gutter) 30px;
+  background: var(--floor);
+  color: var(--floor-ink);
+}
+.colophon::before,
+.colophon::after {
+  content: "";
+  position: absolute;
+  inset: auto 0 100% 0;
+  height: var(--floor-height);
+  background: var(--floor);
+  -webkit-mask: url("/habitat/floor.svg") left bottom / calc(var(--floor-height) * 6.67) var(--floor-height) repeat-x;
+  mask: url("/habitat/floor.svg") left bottom / calc(var(--floor-height) * 6.67) var(--floor-height) repeat-x;
+  pointer-events: none;
+}
+/* The paler row behind: same block, printed again further off. */
+.colophon::before {
+  background: var(--floor-far);
+  -webkit-mask-position: -520px bottom;
+  mask-position: -520px bottom;
 }
 
 /* ---- Shared page pieces -------------------------------------------------------------------- */
@@ -301,15 +326,15 @@ kbd {
 
 .hero {
   display: grid;
-  grid-template-columns: minmax(0, 1.15fr) minmax(0, 0.85fr);
+  grid-template-columns: minmax(0, 1.3fr) minmax(0, 0.7fr);
   gap: clamp(24px, 5vw, 64px);
   align-items: start;
   padding-bottom: 24px;
 }
 .hero h1 {
-  font-size: clamp(52px, 8.5vw, 112px);
+  font-size: clamp(50px, 6.6vw, 94px);
   margin-top: 14px;
-  line-height: 0.95;
+  line-height: 0.98;
 }
 .hero h1 em {
   font-family: var(--font-serif);
@@ -358,11 +383,23 @@ kbd {
   right: 12px;
   color: #4a443a;
 }
+/* No frame: the specimen sits on the page, spilling past the column towards the margin. */
 .hero-plate {
-  margin: 0;
+  margin: -6px calc(-1 * clamp(0px, (100vw - 1120px) / 2, 170px)) 0 -14%;
+  position: relative;
+  z-index: 0;
+}
+.hero-plate .colour-plate {
+  overflow: visible;
+  filter: drop-shadow(3px 4px 0 var(--pressed));
+  transition: --loupe 3.4s cubic-bezier(0.3, 0.1, 0.3, 1);
+}
+.hero-copy {
+  position: relative;
+  z-index: 1;
 }
 .hero-plate figcaption {
-  margin-top: 16px;
+  margin: 14px 0 0 14%;
 }
 .hero-plate figcaption .label {
   margin-right: 6px;
@@ -886,7 +923,7 @@ kbd {
 
 @property --loupe {
   syntax: "<length>";
-  inherits: false;
+  inherits: true; /* set on the plate, read by the mask on its pigment layer */
   initial-value: 0px;
 }
 
@@ -953,7 +990,7 @@ kbd {
   );
   mix-blend-mode: multiply;
 }
-:root[data-alive="true"] .lamp {
+:root[data-alive="true"][data-lamp] .lamp {
   opacity: 1;
   transition-duration: 0.5s;
 }
@@ -1066,4 +1103,404 @@ kbd {
 }
 :root[data-alive] .det-slip:hover {
   border-left-color: var(--pigment-morpho);
+}
+
+/* ---- The habitat ---------------------------------------------------------------------------
+ * The host plant the whole site stands in. See components/Habitat.tsx.
+ *
+ * References: Merian's plates (the insect always on its food plant; the specimens here are hers);
+ * Morris & Co. woodblock wallpaper (two flat blocks, interlaced stems, veins left uncut); the
+ * structural colour of Morpho wings, which shifts from blue to violet-brown with the viewing angle.
+ *
+ * Green here is the plant, never a status: carmine still means a mutation and only that.
+ */
+
+:root {
+  --sky-dawn: linear-gradient(180deg, #f6edd4 0, #f2ecdf 46%, #e8ebd6 100%);
+  --sky-dusk: linear-gradient(180deg, #e9edd9 0, #ebecdf 50%, #e3eadf 100%);
+  --block-back: #d7dcbd;
+  --block-front: #b4c198;
+  --pressed: rgba(46, 40, 24, 0.2);
+  --stem: #5b4a22;
+  --twig-leaf: #6c8f4a;
+  --twig-leaf-line: #2f4220;
+  --pollen: #b98a1e;
+  --floor: #26321d;
+  --floor-far: #93a57c;
+  --floor-height: 240px;
+  --calm: 0.94;
+  --floor-ink: #dfe3c7;
+}
+@media (prefers-color-scheme: dark) {
+  :root:not([data-theme="light"]) {
+    --sky-dawn: linear-gradient(180deg, #0e1512 0, #12140f 50%, #0f1711 100%);
+    --sky-dusk: linear-gradient(180deg, #0c1419 0, #0d1317 50%, #0b1a1c 100%);
+    --block-back: #18251b;
+    --block-front: #233a26;
+    --pressed: rgba(0, 0, 0, 0.55);
+    --stem: #8d7a48;
+    --twig-leaf: #5f8a45;
+    --twig-leaf-line: #aac98f;
+    --pollen: #e7d36a;
+    --floor: #070c08;
+    --floor-far: #16251a;
+    --floor-ink: #b8c2a6;
+  }
+}
+:root[data-theme="dark"] {
+  --sky-dawn: linear-gradient(180deg, #0e1512 0, #12140f 50%, #0f1711 100%);
+  --sky-dusk: linear-gradient(180deg, #0c1419 0, #0d1317 50%, #0b1a1c 100%);
+  --block-back: #18251b;
+  --block-front: #233a26;
+  --pressed: rgba(0, 0, 0, 0.55);
+  --stem: #8d7a48;
+  --twig-leaf: #5f8a45;
+  --twig-leaf-line: #aac98f;
+  --pollen: #e7d36a;
+  --floor: #070c08;
+  --floor-far: #16251a;
+  --floor-ink: #b8c2a6;
+}
+
+.habitat {
+  position: fixed;
+  inset: 0;
+  z-index: 0;
+  overflow: hidden;
+  pointer-events: none;
+}
+.sky {
+  position: absolute;
+  inset: 0;
+  background: var(--sky-dawn);
+}
+.sky-dusk {
+  background: var(--sky-dusk);
+  opacity: var(--life, 0);
+}
+.tile {
+  position: absolute;
+  inset: 0 0 auto 0;
+  will-change: transform;
+}
+.tile-back {
+  height: calc(100vh + 900px);
+  background: var(--block-back);
+  -webkit-mask: url("/habitat/foliage-back.svg") 0 0 / 900px 900px;
+  mask: url("/habitat/foliage-back.svg") 0 0 / 900px 900px;
+}
+.tile-front {
+  height: calc(100vh + 620px);
+  background: var(--block-front);
+  -webkit-mask: url("/habitat/foliage-front.svg") 140px 60px / 620px 620px;
+  mask: url("/habitat/foliage-front.svg") 140px 60px / 620px 620px;
+}
+
+/* Merian's specimens stand in the margins, pressed onto the page with a hard shadow. */
+.specimen {
+  position: absolute;
+  height: auto;
+  filter: drop-shadow(3px 4px 0 var(--pressed));
+  will-change: transform;
+}
+.sp-frangipani {
+  width: clamp(420px, 40vw, 720px);
+  left: clamp(-300px, -17vw, -170px);
+  bottom: -14vh;
+}
+.sp-branch {
+  width: clamp(380px, 34vw, 640px);
+  right: clamp(-290px, -15vw, -150px);
+  top: 12vh;
+}
+.sp-morpho {
+  width: clamp(150px, 14vw, 260px);
+  left: clamp(-30px, 1vw, 40px);
+  top: 96vh;
+  rotate: -14deg;
+}
+.sp-moth {
+  width: clamp(90px, 8vw, 150px);
+  right: clamp(8px, 2vw, 40px);
+  top: 118vh;
+  rotate: 18deg;
+}
+
+/* The hero already shows this branch at full size. */
+.habitat[data-home] .sp-branch {
+  display: none;
+}
+
+/* The centre stays quiet: the same sky laid back over the plants, so text is never on foliage. */
+.calm {
+  position: absolute;
+  inset: 0;
+  --edge: max(10px, calc(50vw - 530px));
+  -webkit-mask: linear-gradient(90deg, transparent 0, rgb(0 0 0 / var(--calm)) var(--edge), rgb(0 0 0 / var(--calm)) calc(100vw - var(--edge)), transparent 100%);
+  mask: linear-gradient(90deg, transparent 0, rgb(0 0 0 / var(--calm)) var(--edge), rgb(0 0 0 / var(--calm)) calc(100vw - var(--edge)), transparent 100%);
+}
+.grain {
+  position: absolute;
+  inset: 0;
+  background: url("/habitat/grain.webp") 0 0 / 256px 256px;
+  opacity: 0.55;
+}
+
+/* Pollen by day. In the dark theme the same specks are fireflies. */
+.pollen i {
+  position: absolute;
+  width: 3px;
+  height: 3px;
+  border-radius: 50%;
+  background: var(--pollen);
+  opacity: 0;
+  animation-name: drift;
+  animation-timing-function: ease-in-out;
+  animation-iteration-count: infinite;
+}
+@keyframes drift {
+  0%, 100% { transform: translate(0, 0); opacity: 0; }
+  20% { opacity: 0.75; }
+  50% { transform: translate(34px, -46px); opacity: 0.35; }
+  75% { transform: translate(-16px, -92px); opacity: 0.8; }
+  92% { opacity: 0; }
+}
+@media (prefers-color-scheme: dark) {
+  :root:not([data-theme="light"]) .pollen i {
+    box-shadow: 0 0 5px 1px var(--pollen);
+  }
+}
+:root[data-theme="dark"] .pollen i {
+  box-shadow: 0 0 5px 1px var(--pollen);
+}
+
+/* ---- The twig and its creature ------------------------------------------------------------- */
+
+.twig {
+  position: absolute;
+  left: 0;
+  right: 0;
+  top: 100%;
+  margin-top: -8px;
+  overflow: visible;
+  pointer-events: none;
+}
+.twig-stem {
+  fill: none;
+  stroke: var(--stem);
+  stroke-width: 2.4;
+  stroke-linecap: round;
+}
+.twig-leaves {
+  fill: var(--twig-leaf);
+  stroke: var(--twig-leaf-line);
+  stroke-width: 0.7;
+}
+.eggs ellipse {
+  fill: #f6eecf;
+  stroke: #5b4a22;
+  stroke-width: 0.8;
+}
+.larva {
+  transition: opacity 0.3s ease;
+}
+.seg circle {
+  fill: #d0a032;
+  stroke: #2b2312;
+  stroke-width: 1;
+}
+.seg-head circle {
+  fill: #7a3c18;
+}
+.seg .spine,
+.seg .horns {
+  fill: none;
+  stroke: #7a2e12;
+  stroke-width: 1;
+  stroke-linecap: round;
+}
+.seg .stripe {
+  fill: none;
+  stroke: #5b4a22;
+  stroke-width: 0.8;
+}
+.seg .leg {
+  fill: none;
+  stroke: #2b2312;
+  stroke-width: 0.9;
+}
+.chrysalis .silk {
+  stroke: var(--stem);
+  stroke-width: 1.2;
+}
+.chrysalis .shell {
+  fill: #79a564;
+  stroke: #24351b;
+  stroke-width: 1;
+}
+.chrysalis .ripe {
+  fill: #1f5fa8;
+}
+.chrysalis .hatch {
+  fill: none;
+  stroke: #24351b;
+  stroke-width: 0.55;
+  opacity: 0.7;
+}
+.chrysalis .gilt {
+  fill: #e0b53c;
+}
+.chrysalis[data-emptied] .shell {
+  fill: #d9d2b4;
+  fill-opacity: 0.75;
+  stroke: #6b6248;
+}
+.chrysalis[data-emptied] .hatch {
+  stroke: #6b6248;
+}
+.chrysalis[data-emptied] .gilt {
+  display: none;
+}
+.chrysalis .split {
+  fill: none;
+  stroke: #2b2312;
+  stroke-width: 1.2;
+}
+
+.life-scale {
+  display: flex;
+  gap: 10px;
+  list-style: none;
+  margin: 0 0 0 18px;
+  padding: 0;
+  font: 500 10px var(--font-mono);
+  letter-spacing: 0.14em;
+  text-transform: uppercase;
+  color: var(--ink-3);
+}
+.life-scale li {
+  transition: color 0.4s ease;
+}
+.life-scale li + li::before {
+  content: "\2192";
+  display: inline-block; /* keeps the arrow out of the current stage's underline */
+  margin-right: 10px;
+  color: var(--rule);
+}
+.life-scale li[data-now] {
+  color: var(--ink);
+  text-decoration: underline;
+  text-underline-offset: 4px;
+  text-decoration-color: var(--pigment-leaf);
+  text-decoration-thickness: 2px;
+}
+@media (max-width: 1040px) {
+  .life-scale {
+    display: none;
+  }
+}
+
+/* ---- The imago ------------------------------------------------------------------------------ */
+
+.butterfly {
+  position: fixed;
+  left: 0;
+  top: 0;
+  z-index: 6;
+  width: 0;
+  height: 0;
+  pointer-events: none;
+  display: none;
+  will-change: transform;
+}
+.butterfly[data-free] {
+  display: block;
+}
+.butterfly-body {
+  position: absolute;
+  left: -29px;
+  bottom: -3px;
+  width: 58px;
+  height: 34px;
+  display: flex;
+  justify-content: center;
+  perspective: 140px;
+}
+.wing {
+  width: 29px;
+  height: 34px;
+  display: block;
+  flex: none;
+}
+.wing-left {
+  transform-origin: right center;
+}
+.wing-left svg {
+  transform: scaleX(-1);
+}
+.wing-right {
+  transform-origin: left center;
+}
+.wing svg {
+  display: block;
+}
+.wing-sheen {
+  opacity: 0;
+}
+.thorax {
+  position: absolute;
+  left: 50%;
+  top: 7px;
+  width: 3.4px;
+  height: 21px;
+  margin-left: -1.7px;
+  border-radius: 2px;
+  background: #1a1510;
+}
+.thorax::before,
+.thorax::after {
+  content: "";
+  position: absolute;
+  top: -7px;
+  width: 1px;
+  height: 8px;
+  background: #1a1510;
+}
+.thorax::before {
+  left: 0;
+  transform: rotate(-22deg);
+}
+.thorax::after {
+  right: 0;
+  transform: rotate(22deg);
+}
+
+/* Narrow screens have no margins: the foliage alone carries the page, and one specimen stays. */
+@media (max-width: 1100px) {
+  .sp-frangipani,
+  .sp-moth,
+  .sp-morpho {
+    display: none;
+  }
+  .sp-branch {
+    width: 300px;
+    right: -210px;
+    top: 90px;
+    opacity: 0.8;
+  }
+}
+@media (max-width: 900px) {
+  :root {
+    --calm: 0.78; /* no margins here, so a little more of the plant shows behind the page */
+    --floor-height: 190px;
+  }
+  .hero-plate {
+    margin: 0;
+  }
+  .hero-plate figcaption {
+    margin-left: 0;
+  }
+  .colophon {
+    margin-top: 110px;
+  }
 }
