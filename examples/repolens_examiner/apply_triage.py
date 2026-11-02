@@ -11,6 +11,7 @@ in the cabinet (`metamorph triage`), which simply records a newer verdict.
 """
 
 from collections import Counter
+from pathlib import Path
 
 from metamorph.config import load_config
 from metamorph.reports.model import Triage
@@ -25,7 +26,7 @@ NOTE = {
 
 
 def main() -> None:
-    with open_store(load_config("metamorph.yaml")) as store:
+    with open_store(load_config(Path("metamorph.yaml"))) as store:
         run_id = store.latest_run_id()
         report = store.load_report(run_id) if run_id else None
         if report is None:

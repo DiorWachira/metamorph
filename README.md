@@ -471,6 +471,8 @@ wrong test for a keyword router, and triage shows that.
   come from 10 distinct follow-up questions.
 - No relation reached the 20 reviews that learned promotion needs, so promotion is **not yet shown
   on real data**. The study did not pad its inputs to get there.
+- The follow-ups were written after reading the router's code, so they were not blind, though
+  none was revised after seeing a result.
 - The self-variance baseline does not apply, because this target is deterministic.
 
 To reproduce it, see [`examples/repolens_examiner/metamorph.yaml`](examples/repolens_examiner/metamorph.yaml).

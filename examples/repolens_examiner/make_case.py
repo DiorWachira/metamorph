@@ -1,14 +1,15 @@
 """Write seeds.jsonl and recordings.jsonl for the RepoLens Examiner case study.
-# ruff: noqa: E501  (the follow-ups are data, kept whole on one line)
 
 Seeds: the Examiner's own suggested prompts and follow-ups plus plain questions, each asked of three
-real examinations (reports/), from the case-file page, with a line of the chart open where the
-question is about "this" line.
+real examinations (reports/), with a line of the chart open where the question is about "this" line.
 
-Follow-ups: written by hand in one pass, before any run, because no API key was available. They are
+Follow-ups: written by hand in one pass, before any run but after reading the router's code,
+because no API key was available. They are
 what a person might plausibly type, and are stored in replay format. To use a real helper model
 instead, set `llm: {provider: anthropic, record_to: recordings.jsonl}` in metamorph.yaml.
 """
+
+# ruff: noqa: E501  (the follow-ups are data, kept whole on one line)
 
 import json
 from pathlib import Path
