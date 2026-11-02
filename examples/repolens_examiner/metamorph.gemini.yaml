@@ -1,0 +1,47 @@
+# Case study, part two: RepoLens's Gemini Examiner, with a live helper model. Needs GEMINI_API_KEY.
+#
+#   cd examples/repolens_examiner && metamorph run --config metamorph.gemini.yaml
+#
+# Built to fit Gemini's free tier, which allows 15 requests a minute on Flash-Lite and only 20 a day
+# on RepoLens's default model. So the target is pinned to Flash-Lite, RepoLens's own fallback model
+# (see examiner_gemini.py), and calls are paced to share that limit. Rewrites and the entailment
+# judge use the same model, and every helper call is recorded for replay.
+
+target:
+  type: python
+  callable: examiner_gemini:answer
+  version: flash-lite-only
+
+seeds: seeds.gemini.jsonl
+
+fields:
+  text: question
+
+llm:
+  provider: openai_compatible
+  base_url: https://generativelanguage.googleapis.com/v1beta/openai
+  model: gemini-3.5-flash-lite
+  api_key_env: GEMINI_API_KEY
+  input_cost_per_mtok: 0.30   # Gemini 3.5 Flash-Lite, paid tier, November 2026
+  output_cost_per_mtok: 2.50
+  record_to: recordings.gemini.jsonl
+  concurrency: 1
+  requests_per_minute: 9
+
+relations:
+  - id: typo-robustness
+    comparator: {name: entails}
+  - paraphrase-invariance
+  - code-switch-invariance
+  - politeness-invariance
+
+run:
+  seed: 5
+  samples: 2        # the model is not deterministic: measure each input's self-agreement first
+  margin: 0.05
+  concurrency: 1
+  requests_per_minute: 5
+  backoff_s: 20
+
+gate:
+  max_blocking_violations: 0

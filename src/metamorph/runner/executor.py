@@ -12,6 +12,7 @@ from metamorph.adapters.base import Target, TargetResponse
 from metamorph.errors import RetryableTargetError, TargetError
 from metamorph.runner.budget import Budget, BudgetExhausted
 from metamorph.runner.cache import Cache, cache_key
+from metamorph.runner.pacing import RateLimiter
 from metamorph.types import Input, TargetOutput
 
 MAX_BACKOFF_S = 30.0
@@ -38,10 +39,12 @@ class CallExecutor:
         backoff_s: float = 0.5,
         on_done: Callable[[], None] | None = None,
         budget: Budget | None = None,
+        pace: RateLimiter | None = None,
     ) -> None:
         self.target = target
         self.cache = cache
         self.budget = budget or Budget()
+        self.pace = pace
         self.namespace = namespace
         self.semaphore = asyncio.Semaphore(concurrency)
         self.retries = retries
@@ -101,6 +104,8 @@ class CallExecutor:
 
     async def _call_with_retries(self, payload: Input) -> TargetResponse:
         for attempt in range(self.retries + 1):
+            if self.pace:
+                await self.pace.wait()
             self.stats.target_calls += 1
             try:
                 return await self.target.call(payload)

@@ -12,7 +12,7 @@ from typing import Any, cast
 
 from metamorph.adapters.base import OutputExtractor, Target, TargetResponse
 from metamorph.config import PythonTargetConfig
-from metamorph.errors import ConfigError, TargetError
+from metamorph.errors import ConfigError, RetryableTargetError, TargetError
 from metamorph.types import Input
 from metamorph.util import canonical_json, sha256
 
@@ -49,6 +49,8 @@ class PythonTarget(Target):
                 result = await self.fn(payload)
             else:
                 result = await asyncio.to_thread(self.fn, payload)
+        except RetryableTargetError:
+            raise  # a callable can ask for a retry, for example when it is rate limited
         except Exception as exc:
             raise TargetError(f"{type(exc).__name__}: {exc}") from exc
         return TargetResponse(text=self.extract(result))

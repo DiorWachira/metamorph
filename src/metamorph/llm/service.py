@@ -12,6 +12,7 @@ from metamorph.llm.base import LLMError, LLMProvider, LLMRequest, LLMResult
 from metamorph.llm.replay import recording_line
 from metamorph.runner.budget import Budget
 from metamorph.runner.cache import Cache
+from metamorph.runner.pacing import RateLimiter
 
 
 @dataclass
@@ -30,12 +31,14 @@ class LLMService:
         budget: Budget | None = None,
         concurrency: int = 4,
         record_to: Path | None = None,
+        pace: RateLimiter | None = None,
     ) -> None:
         self.provider = provider
         self.cache = cache
         self.budget = budget or Budget()
         self.semaphore = asyncio.Semaphore(concurrency)
         self.record_to = record_to
+        self.pace = pace
         self.stats = LLMStats()
 
     @property
@@ -51,6 +54,8 @@ class LLMService:
 
         self.budget.check()
         async with self.semaphore:
+            if self.pace:
+                await self.pace.wait()
             try:
                 result = await self.provider.complete(request)
             except LLMError:

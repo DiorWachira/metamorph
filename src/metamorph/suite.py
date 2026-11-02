@@ -20,6 +20,7 @@ from metamorph.runner.budget import Budget
 from metamorph.runner.cache import Cache
 from metamorph.runner.engine import execute, plan
 from metamorph.runner.executor import CallExecutor
+from metamorph.runner.pacing import limiter
 from metamorph.seeds import load_seeds
 from metamorph.services import Services
 from metamorph.storage import Store, sqlite_url
@@ -72,7 +73,8 @@ def build_llm(
         provider = build_provider(llm_cfg, config.base_dir)
     record_to = config.resolve(llm_cfg.record_to) if llm_cfg and llm_cfg.record_to else None
     concurrency = llm_cfg.concurrency if llm_cfg else 4
-    return LLMService(provider, cache, budget, concurrency, record_to)
+    pace = limiter(llm_cfg.requests_per_minute) if llm_cfg else None
+    return LLMService(provider, cache, budget, concurrency, record_to, pace)
 
 
 async def run_suite(
@@ -136,6 +138,7 @@ async def _run(
         backoff_s=config.run.backoff_s,
         on_done=on_call_done,
         budget=budget,
+        pace=limiter(config.run.requests_per_minute),
     )
 
     def total_cost() -> float:

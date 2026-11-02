@@ -70,6 +70,7 @@ class LLMConfig(_Strict):
     recordings: Path | None = None  # replay: file of recorded calls
     record_to: Path | None = None  # append every live call here, for later replay
     concurrency: int = Field(default=4, ge=1)
+    requests_per_minute: float | None = Field(default=None, gt=0.0)  # for rate-limited providers
 
 
 class FieldsConfig(_Strict):
@@ -85,6 +86,7 @@ class RunConfig(_Strict):
     samples: int = Field(default=1, ge=1)  # k calls per source input for the self-variance baseline
     margin: float = Field(default=0.05, ge=0.0)
     concurrency: int = Field(default=8, ge=1)
+    requests_per_minute: float | None = Field(default=None, gt=0.0)  # target calls and retries
     retries: int = Field(default=3, ge=0)
     backoff_s: float = Field(default=0.5, ge=0.0)
     budget_usd: float | None = Field(default=None, gt=0.0)  # stop starting paid calls beyond this

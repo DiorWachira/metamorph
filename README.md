@@ -207,6 +207,7 @@ run:
   margin: 0.05
   concurrency: 8
   retries: 3
+  # requests_per_minute: 5   # pace target calls for a rate-limited provider (also under llm:)
 
 gate:
   max_blocking_violations: 0
